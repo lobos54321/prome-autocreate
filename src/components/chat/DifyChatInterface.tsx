@@ -2115,7 +2115,11 @@ export function DifyChatInterface({
     // 使用新的对话历史管理函数
     createNewConversation();
     
-    // 添加欢迎消息
+    // 🔧 关键修复：发送符合chatflow条件的初始消息来触发信息收集流程
+    // 根据你的chatflow，条件分支0检查是否包含"biubiu"
+    // 但我们应该直接让用户开始信息收集，而不依赖特殊触发词
+    
+    // 添加欢迎消息，指导用户开始信息收集
     if (welcomeMessage) {
       setMessages([{
         id: 'welcome',

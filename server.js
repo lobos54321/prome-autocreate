@@ -929,19 +929,26 @@ app.post('/api/dify', async (req, res) => {
       }
     }
 
-    // 🔧 DIFY API 正确用法：inputs只包含App定义的变量，不包含conversation_*变量
-    // conversation_*变量由DIFY内部管理，不应通过inputs传递
-    const enhancedInputs = {
-      ...inputs
-      // 移除所有conversation_*变量的传递 - 让DIFY自己管理对话状态
-    };
+    // 🔧 DIFY API 正确用法：为新对话确保conversation variables正确初始化
+    // 检查是否为新对话，如果是则初始化conversation variables
+    const isNewConversation = !difyConversationId;
     
-    const requestBody = {
-      inputs: {},
+    let requestBody = {
       query: actualMessage, // 🔧 用户输入使用query参数
       response_mode: stream ? 'streaming' : 'blocking',
       user: getValidUserId(user)
     };
+
+    // 🔧 关键修复：对于新对话，确保conversation_id为空字符串让DIFY创建新对话
+    // 对于已有对话，传递正确的conversation_id以保持对话连续性
+    if (isNewConversation) {
+      // 新对话：不传conversation_id，让DIFY自动创建并初始化所有conversation variables
+      console.log('🆕 Starting new conversation - letting DIFY initialize conversation variables');
+    } else {
+      // 已有对话：传递conversation_id以保持对话状态
+      requestBody.conversation_id = difyConversationId;
+      console.log('🔄 Continuing existing conversation:', difyConversationId);
+    }
     
     // 🔧 调试：记录发送给DIFY的完整请求
     console.log('📤 [DIFY API] Sending request to chat-messages:', {
@@ -985,48 +992,9 @@ app.post('/api/dify', async (req, res) => {
       console.log(`🆕 Emergency new conversation ID: ${conversationId}`);
     }
 
-    // 🎯 新会话处理：根据GitHub历史实现，应该让第一次消息触发开场白
-    // 第二次消息开始正常的dialogue_count=1流程
-    if (!difyConversationId) {
-      console.log('🆕 New conversation detected - checking if this should return opening statement');
-      
-      // 简单问候语直接返回开场白，不消耗DIFY dialogue_count
-      if (actualMessage.match(/^(你好|nihao|hello|hi)$/i)) {
-        console.log('🎯 Simple greeting detected - returning opening statement directly');
-        
-        const openingStatement = "您好！我是您的AI助手。您可以告诉我您的产品信息，特色，用户人群，想要多少字数？";
-        
-        // 生成新的conversation_id供后续使用
-        const newConversationId = generateUUID();
-        
-        // 保存对话记录（开场白作为第一条消息）
-        if (supabase) {
-          await ensureConversationExists(supabase, conversationId, newConversationId, getValidUserId(user));
-          await supabase.from('messages').insert({
-            id: generateUUID(),
-            conversation_id: conversationId,
-            role: 'assistant',
-            content: openingStatement,
-            metadata: { opening_statement: true, dialogue_count_offset: 0 },
-            created_at: new Date().toISOString()
-          });
-        }
-        
-        console.log('✅ Returned opening statement, next user message will start at dialogue_count=0');
-        return res.json({
-          answer: openingStatement,
-          conversation_id: newConversationId,
-          message_id: generateUUID(),
-          metadata: { opening_statement: true }
-        });
-      } else {
-        console.log('🔄 Non-greeting message in new conversation - processing normally');
-        // 非问候语，正常处理
-      }
-    } else {
-      // 现有对话，直接添加conversation_id
-      requestBody.conversation_id = difyConversationId;
-    }
+    // 🔧 关键修复：确保新对话正确启动chatflow，让DIFY处理opening_statement
+    // 不要在服务器端预先判断和返回开场白，而是让DIFY按照chatflow自然流程处理
+    console.log('📋 Preparing request for DIFY chatflow processing...');
 
     // Send message to Dify API
     let response;
