@@ -1,0 +1,56 @@
+[dotenv@17.2.1] injecting env (12) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+🚀 Starting Prome Platform server
+✅ Dify API environment variables are configured
+Server is running on port 3001
+🔍 Performing database health check...
+✅ Database health check passed - all required tables exist
+🔍 INCOMING REQUEST: POST /api/dify/test-conversation-id
+🗣️ NON-STREAM /:conversationId ENDPOINT CALLED with: test-conversation-id
+🔍 Non-stream endpoint processing conversation: test-conversation-id
+🔧 Generated new UUID for invalid conversation ID: test-conversation-id -> 36787c09-aba2-4fae-816f-6b16a0beda92
+🆕 Creating conversation record for: 36787c09-aba2-4fae-816f-6b16a0beda92
+🔧 Generated anonymous user ID: d521831f-5b43-4bb3-b86c-8120086a8624
+🔍 ensureConversationExists called with: {
+  conversationId: '36787c09-aba2-4fae-816f-6b16a0beda92',
+  difyConversationId: null,
+  userId: 'd521831f-5b43-4bb3-b86c-8120086a8624',
+  hasSupabase: true
+}
+⚠️ User not found in database, creating conversation without user_id: d521831f-5b43-4bb3-b86c-8120086a8624
+✅ Created new conversation record
+🔧 Generated anonymous user ID: db3916ce-3cc7-49a4-8b3c-6f36dcf1f608
+⚠️ No existing DIFY conversation ID found, will create new conversation
+🔧 FIXED: Using chat-messages API to maintain conversation state for ChatFlow
+🎯 INTELLIGENT STATE ANALYSIS - REGULAR:
+   🧠 Detected Stage: initial
+   🎯 Confidence: 0.7
+   📊 User Message Count: 1
+   🔍 Detected Intents: { initial: false, selection: false, confirmation: false }
+   🧮 Logical Count: 0
+🔄 新对话检测到，发送预热消息消耗开场白的dialogue_count=0
+🔧 Generated anonymous user ID: 2b274d92-5901-4836-9728-6aa27acd60f1
+⚠️ 预热消息失败，继续原请求: ReferenceError: STANDARD_TIMEOUT is not defined
+    at file:///Users/boliu/prome-platform/server.js:1870:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+   🧠 Detected Stage: initial (Confidence: 0.7)
+   🔍 Intents: { initial: false, selection: false, confirmation: false }
+🔍 API Debug Info:
+   Endpoint: https://api.dify.ai/v1/chat-messages
+   Local conversation ID: 36787c09-aba2-4fae-816f-6b16a0beda92
+   DIFY conversation ID: null
+   Request body: {
+  "inputs": {},
+  "query": "hello",
+  "response_mode": "blocking",
+  "user": "db3916ce-3cc7-49a4-8b3c-6f36dcf1f608"
+}
+⚠️ No conversation ID in request - will create new conversation
+🔧 Generated anonymous user ID: 01dc4a8d-3033-495a-b2ac-b7756680956e
+🔍 ensureConversationExists called with: {
+  conversationId: '36787c09-aba2-4fae-816f-6b16a0beda92',
+  difyConversationId: '56b2dd1b-f5f9-4c13-827d-110a57f40fcb',
+  userId: '01dc4a8d-3033-495a-b2ac-b7756680956e',
+  hasSupabase: true
+}
+✅ Updated conversation mapping with Dify ID
+✅ Messages saved successfully
