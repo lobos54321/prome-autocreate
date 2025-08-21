@@ -1048,8 +1048,17 @@ export function DifyChatInterface({
           // 🔥 修复：使用官方API规范的标准字段
           query: messageContent,        // ✅ 官方API必需字段
           user: userId || 'anonymous-user', // ✅ 官方API必需字段，用户标识
-          // 🔧 关键修复：优先使用localStorage中的dify_conversation_id以确保对话连续性
-          conversation_id: localStorage.getItem('dify_conversation_id') || conversationId || undefined,
+          // 🔧 修复ChatFlow循环问题：正确处理conversation_id优先级 [DEBUG-2025]
+          conversation_id: (() => {
+            const finalConvId = conversationId || localStorage.getItem('dify_conversation_id') || undefined;
+            console.log('[DEBUG-2025] Frontend conversation_id logic:', {
+              conversationId_state: conversationId,
+              localStorage_dify_id: localStorage.getItem('dify_conversation_id'),
+              final_conversation_id: finalConvId,
+              timestamp: new Date().toISOString()
+            });
+            return finalConvId;
+          })(),
           response_mode: 'streaming', // ✅ 官方API字段：streaming/blocking
           stream: true, // 🔧 关键修复：启用流式响应
           auto_generate_name: true,   // ✅ 官方API字段：自动生成会话标题
@@ -1093,6 +1102,22 @@ export function DifyChatInterface({
           body: errorText.substring(0, 200) + (errorText.length > 200 ? '...' : ''),
           timestamp: new Date().toISOString()
         });
+        
+        // 🔧 修复ChatFlow循环：检查是否是conversation_id相关错误
+        if (errorData.message && (
+          errorData.message.includes('Conversation Not Exists') || 
+          errorData.message.includes('not a valid uuid') ||
+          errorData.code === 'not_found'
+        )) {
+          console.warn('🔄 Invalid conversation_id detected, clearing and retrying with new conversation');
+          // 清理无效的conversation_id
+          localStorage.removeItem('dify_conversation_id');
+          setConversationId(null);
+          
+          if (currentRetry < maxRetries) {
+            return sendMessageWithRetry(messageContent, currentRetry + 1);
+          }
+        }
         
         // 检查是否是可重试的错误
         const isRetriableError = response.status >= 500 || response.status === 408 || response.status === 429;

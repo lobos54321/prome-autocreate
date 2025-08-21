@@ -586,6 +586,76 @@ async function saveMessages(supabase, conversationId, userMessage, difyResponse)
   }
 }
 
+// 🔧 UNIFIED BILLING: 统一的积分扣除函数
+async function handleTokenBilling(responseData, user, endpoint = 'unknown') {
+  if (responseData && responseData.metadata && responseData.metadata.usage && responseData.metadata.usage.total_tokens) {
+    const totalTokens = responseData.metadata.usage.total_tokens;
+    const actualCost = Number(responseData.metadata.usage.total_price || (totalTokens * 0.000002175));
+    const pointsToDeduct = Math.ceil(actualCost * 10000); // 🔧 CORRECT FORMULA: 美金成本 × 10000 = 积分
+    
+    console.log(`💰 [BILLING-${endpoint}] Multi-node LLM: ${totalTokens} tokens`);
+    console.log(`💰 [COST-${endpoint}] Actual cost: $${actualCost.toFixed(6)} = ${pointsToDeduct} points`);
+    
+    const userId = getValidUserId(user);
+    
+    // 🔧 IMPLEMENT ACTUAL POINTS DEDUCTION
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    if (supabaseClient && userId) {
+      try {
+        // First check current balance
+        const { data: userBalance, error: balanceError } = await supabaseClient
+          .from('users')
+          .select('balance')
+          .eq('id', userId)
+          .single();
+          
+        if (balanceError) {
+          console.log(`⚠️  [BILLING-${endpoint}] User not found in database: ${userId}`);
+          // Create user record with default balance if not exists
+          await supabaseClient.from('users').insert({
+            id: userId,
+            balance: 10000 - pointsToDeduct, // Start with 10k, deduct current cost
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          console.log(`✅ [BILLING-${endpoint}] Created user with balance: ${10000 - pointsToDeduct} points`);
+        } else {
+          const currentBalance = userBalance.balance || 0;
+          const newBalance = Math.max(0, currentBalance - pointsToDeduct);
+          
+          // Update user balance
+          const { error: updateError } = await supabaseClient
+            .from('users')
+            .update({ 
+              balance: newBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+            
+          if (updateError) {
+            console.error(`❌ [BILLING-${endpoint}] Failed to deduct points: ${updateError.message}`);
+          } else {
+            console.log(`✅ [BILLING-${endpoint}] Deducted ${pointsToDeduct} points. Balance: ${currentBalance} → ${newBalance}`);
+          }
+        }
+      } catch (dbError) {
+        console.error(`❌ [BILLING-${endpoint}] Database error: ${dbError.message}`);
+      }
+    } else {
+      console.log(`⚠️  [BILLING-${endpoint}] Cannot deduct points - missing database or userId`);
+    }
+    
+    return {
+      tokens: totalTokens,
+      points: pointsToDeduct,
+      cost: actualCost.toFixed(6)
+    };
+  }
+  return null;
+}
+
 // 🔧 新增：纯聊天模式端点 - 专门处理简单对话而非工作流
 app.post('/api/dify/chat/simple', async (req, res) => {
   const { message, conversationId: clientConvId, userId } = req.body;
@@ -619,6 +689,7 @@ app.post('/api/dify/chat/simple', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        inputs: {}, // 🔧 DIFY需要inputs参数
         query: message,
         user: userIdentifier,
         conversation_id: clientConvId || '', // 空字符串让Dify创建新对话
@@ -642,6 +713,9 @@ app.post('/api/dify/chat/simple', async (req, res) => {
       answerLength: data.answer?.length || 0,
       messageId: data.message_id
     });
+
+    // 🔧 BILLING: 处理积分扣除
+    const billingInfo = await handleTokenBilling(data, userId, 'SIMPLE');
 
     // 返回简化的响应格式
     return res.status(200).json({
@@ -697,6 +771,7 @@ app.post('/api/dify/chat', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        inputs: {}, // 🔧 DIFY需要inputs参数
         query: message,
         user: userIdentifier, // ✅ Required user parameter
         conversation_id: isNewConversation ? '' : conversationId, // Empty string for new conversations
@@ -711,6 +786,9 @@ app.post('/api/dify/chat', async (req, res) => {
     }
 
     const data = await difyResponse.json();
+    
+    // 🔧 BILLING: 处理积分扣除
+    const billingInfo = await handleTokenBilling(data, userIdentifier, 'CHAT');
     
     // Update conversation state in memory store
     conversationStore.set(data.conversation_id || conversationId, {
@@ -736,7 +814,7 @@ app.post('/api/dify/chat', async (req, res) => {
 });
 
 // MOCK ENDPOINT FOR TESTING - When Dify API is not accessible
-app.post('/api/dify/chat/mock', (req, res) => {
+app.post('/api/dify/chat/mock', async (req, res) => {
   const { message, conversationId: clientConvId, userId } = req.body;
   
   // Generate or get user ID
@@ -765,6 +843,9 @@ app.post('/api/dify/chat/mock', (req, res) => {
     userId: userIdentifier,
     created_at: Date.now()
   };
+
+  // 🔧 BILLING: 处理积分扣除 (Mock endpoint)
+  const billingInfo = await handleTokenBilling(mockResponse, userIdentifier, 'MOCK');
 
   // Store in memory (simulate the real endpoint behavior)
   conversationStore.set(conversationId, {
@@ -887,8 +968,15 @@ app.get('/api/config/status', async (req, res) => {
 app.post('/api/dify', async (req, res) => {
   console.log('🗣️ GENERIC /api/dify ENDPOINT CALLED');
   try {
-    const { message, query, user, conversation_id, stream = false } = req.body;
+    // 🔥 FIX: Check both req.body.stream and req.query.stream for streaming mode
+    const bodyStream = req.body.stream;
+    const queryStream = req.query.stream === 'true';
+    const shouldStream = bodyStream || queryStream;
+    
+    const { message, query, user, conversation_id } = req.body;
     const actualMessage = message || query; // Support both message and query fields
+    
+    console.log(`📊 Streaming mode: body=${bodyStream}, query=${queryStream}, final=${shouldStream}`);
     
     if (!actualMessage) {
       return res.status(400).json({ error: 'Message or query is required' });
@@ -905,9 +993,9 @@ app.post('/api/dify', async (req, res) => {
       supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     }
 
-    // Use conversation_id from request body, or generate a new UUID if invalid
-    let difyConversationId = conversation_id || null;
+    // 🔧 CRITICAL FIX: Separate internal conversation_id from DIFY conversation_id
     let conversationId = conversation_id && isValidUUID(conversation_id) ? conversation_id : generateUUID();
+    let difyConversationId = null; // Will be retrieved from database
     
     // Log UUID generation for debugging
     if (conversation_id && !isValidUUID(conversation_id)) {
@@ -916,16 +1004,26 @@ app.post('/api/dify', async (req, res) => {
       console.log(`🆕 Generated new conversation UUID: ${conversationId}`);
     }
 
-    // If we have a conversation_id, check if it exists in our database
-    if (difyConversationId && supabase) {
-      const { data: conversationRow } = await supabase
-        .from('conversations')
-        .select('dify_conversation_id')
-        .eq('id', conversationId)
-        .single();
+    // If we have a conversation_id, check if it exists in our database  
+    if (conversationId && supabase) {
+      console.log(`🔍 Looking up conversation in database: ${conversationId}`);
+      try {
+        const { data: conversationRow, error } = await supabase
+          .from('conversations')
+          .select('dify_conversation_id')
+          .eq('id', conversationId)
+          .maybeSingle(); // Use maybeSingle to avoid errors when not found
 
-      if (conversationRow?.dify_conversation_id) {
-        difyConversationId = conversationRow.dify_conversation_id;
+        if (error) {
+          console.log(`⚠️ Database lookup error: ${error.message}`);
+        } else if (conversationRow?.dify_conversation_id) {
+          difyConversationId = conversationRow.dify_conversation_id;
+          console.log(`✅ Found existing DIFY conversation: ${difyConversationId}`);
+        } else {
+          console.log(`📝 No existing conversation found for: ${conversationId}`);
+        }
+      } catch (dbError) {
+        console.error(`❌ Database lookup failed: ${dbError.message}`);
       }
     }
 
@@ -933,9 +1031,42 @@ app.post('/api/dify', async (req, res) => {
     // 检查是否为新对话，如果是则初始化conversation variables
     const isNewConversation = !difyConversationId;
     
+    // 🔧 动态计算conversation_info_completeness
+    let infoCompleteness = 0;
+    if (supabase && !isNewConversation) {
+      try {
+        // 从数据库获取历史对话来计算当前completeness
+        const { data: messages } = await supabase
+          .from('messages')
+          .select('content')
+          .eq('conversation_id', conversationId)
+          .eq('role', 'assistant')
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (messages && messages.length > 0) {
+          // 查找最后一个COMPLETENESS值
+          for (const msg of messages) {
+            const match = msg.content.match(/COMPLETENESS:\s*(\d+)/);
+            if (match) {
+              infoCompleteness = parseInt(match[1]);
+              console.log(`📊 Found existing COMPLETENESS: ${infoCompleteness} from database`);
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to fetch completeness from database:', err.message);
+      }
+    }
+
     let requestBody = {
+      inputs: {
+        // 🔧 关键修复：注入conversation_info_completeness变量到DIFY工作流
+        conversation_info_completeness: infoCompleteness
+      },
       query: actualMessage, // 🔧 用户输入使用query参数
-      response_mode: stream ? 'streaming' : 'blocking',
+      response_mode: shouldStream ? 'streaming' : 'blocking',
       user: getValidUserId(user)
     };
 
@@ -953,10 +1084,11 @@ app.post('/api/dify', async (req, res) => {
     // 🔧 调试：记录发送给DIFY的完整请求
     console.log('📤 [DIFY API] Sending request to chat-messages:', {
       query: actualMessage.substring(0, 100) + '...',
-      // inputs field removed to match DIFY platform behavior
+      inputs: requestBody.inputs, // 🔧 显示inputs内容
       response_mode: requestBody.response_mode,
       user: requestBody.user,
       conversation_id: difyConversationId || 'NEW_CONVERSATION',
+      calculated_completeness: infoCompleteness, // 🔧 显示计算得到的completeness
       timestamp: new Date().toISOString()
     });
     
@@ -1019,11 +1151,35 @@ app.post('/api/dify', async (req, res) => {
         console.error('Dify API error:', errorData);
 
         if (errorData.code === 'not_found' && errorData.message?.includes('Conversation')) {
-          console.log('❌ Conversation not found in DIFY - this breaks chatflow continuity');
-          console.log('🚨 Rejecting request to maintain proper chatflow state management');
+          console.log('❌ Conversation not found in DIFY - attempting recovery');
+          console.log('🔄 Creating new conversation to replace expired one');
           
-          // Return the error to frontend instead of silently creating new conversation
-          throw new Error(`Dify conversation not found: ${errorData.message}`);
+          // Remove conversation_id and retry as new conversation
+          delete requestBody.conversation_id;
+          console.log('🆕 Retrying without conversation_id to create fresh conversation');
+          
+          // Retry the request without conversation_id
+          const retryResponse = await fetchWithTimeoutAndRetry(
+            `${DIFY_API_URL}/chat-messages`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${DIFY_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody),
+            },
+            DEFAULT_TIMEOUT
+          );
+          
+          if (!retryResponse.ok) {
+            const retryError = await retryResponse.json();
+            console.error('❌ Retry also failed:', retryError);
+            throw new Error(`Dify API failed even after retry: ${retryError.message}`);
+          }
+          
+          response = retryResponse; // Use the retry response
+          console.log('✅ Successfully recovered with new conversation');
         } else {
           throw new Error(`Dify API error: ${errorData.message || 'Unknown error'}`);
         }
@@ -1092,7 +1248,7 @@ app.post('/api/dify', async (req, res) => {
       const headerMetadata = extractMetadataFromHeaders(response);
 
       // Handle streaming vs blocking response
-      if (stream && requestBody.response_mode === 'streaming') {
+      if (shouldStream && requestBody.response_mode === 'streaming') {
         console.log('🔄 Handling streaming response from Dify API');
         
         // Set up streaming response headers
@@ -1256,6 +1412,9 @@ app.post('/api/dify', async (req, res) => {
           
           // Save to database if we have final data
           if (finalData && supabase) {
+            // 🔧 BILLING: 处理积分扣除
+            const billingInfo = await handleTokenBilling(finalData, user, 'WORKFLOW_STREAM');
+            
             const effectiveConversationId = finalData.conversation_id || conversationId;
             const conversationCreated = await ensureConversationExists(supabase, effectiveConversationId, finalData.conversation_id, getValidUserId(user));
             
@@ -1353,6 +1512,9 @@ app.post('/api/dify', async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
+    // 🔧 BILLING: 处理积分扣除 (使用统一计费函数)
+    const billingInfo = await handleTokenBilling(responseData, user, 'DIFY_GENERIC');
+
     res.json(responseData);
   } catch (error) {
     console.error('Generic Dify API error:', error);
@@ -1386,9 +1548,9 @@ app.post('/api/dify/workflow', async (req, res) => {
     // Initialize Supabase only if fully configured
     const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
 
-    // Use conversation_id from request body, or generate a new UUID if invalid
-    let difyConversationId = conversation_id || null;
+    // 🔧 CRITICAL FIX: Separate internal conversation_id from DIFY conversation_id
     let conversationId = conversation_id && isValidUUID(conversation_id) ? conversation_id : generateUUID();
+    let difyConversationId = null; // Will be retrieved from database
     
     // Log UUID generation for debugging
     if (conversation_id && !isValidUUID(conversation_id)) {
@@ -1397,16 +1559,26 @@ app.post('/api/dify/workflow', async (req, res) => {
       console.log(`🆕 Generated new conversation UUID: ${conversationId}`);
     }
 
-    // If we have a conversation_id, check if it exists in our database
-    if (difyConversationId && supabase) {
-      const { data: conversationRow } = await supabase
-        .from('conversations')
-        .select('dify_conversation_id')
-        .eq('id', conversationId)
-        .single();
+    // If we have a conversation_id, check if it exists in our database  
+    if (conversationId && supabase) {
+      console.log(`🔍 Looking up conversation in database: ${conversationId}`);
+      try {
+        const { data: conversationRow, error } = await supabase
+          .from('conversations')
+          .select('dify_conversation_id')
+          .eq('id', conversationId)
+          .maybeSingle(); // Use maybeSingle to avoid errors when not found
 
-      if (conversationRow?.dify_conversation_id) {
-        difyConversationId = conversationRow.dify_conversation_id;
+        if (error) {
+          console.log(`⚠️ Database lookup error: ${error.message}`);
+        } else if (conversationRow?.dify_conversation_id) {
+          difyConversationId = conversationRow.dify_conversation_id;
+          console.log(`✅ Found existing DIFY conversation: ${difyConversationId}`);
+        } else {
+          console.log(`📝 No existing conversation found for: ${conversationId}`);
+        }
+      } catch (dbError) {
+        console.error(`❌ Database lookup failed: ${dbError.message}`);
       }
     }
 
@@ -1578,6 +1750,44 @@ app.post('/api/dify/workflow', async (req, res) => {
                         message_id: parsed.message_id,
                         metadata: parsed.metadata
                       };
+                      
+                      // 🔥 CRITICAL FIX: Extract usage information from workflow_finished event
+                      if (parsed.event === 'workflow_finished' && parsed.data) {
+                        console.log('💰 [STREAMING] Processing workflow_finished event for usage data...');
+                        console.log('📊 [STREAMING] Raw workflow_finished data:', JSON.stringify(parsed.data));
+                        
+                        // Try multiple possible locations for usage data
+                        let usageData = null;
+                        if (parsed.data.metadata && parsed.data.metadata.usage) {
+                          usageData = parsed.data.metadata.usage;
+                          console.log('💰 [STREAMING] Found usage in data.metadata.usage:', JSON.stringify(usageData));
+                        } else if (parsed.data.usage) {
+                          usageData = parsed.data.usage;
+                          console.log('💰 [STREAMING] Found usage in data.usage:', JSON.stringify(usageData));
+                        } else if (parsed.usage) {
+                          usageData = parsed.usage;
+                          console.log('💰 [STREAMING] Found usage in root level:', JSON.stringify(usageData));
+                        }
+                        
+                        if (usageData) {
+                          finalData.metadata = {
+                            ...finalData.metadata,
+                            usage: usageData,
+                            timestamp: new Date().toISOString()
+                          };
+                        } else {
+                          console.log('⚠️ [STREAMING] No usage data found in workflow_finished event');
+                        }
+                      }
+                      
+                      // Also check message_end events for usage data
+                      if (parsed.event === 'message_end' && parsed.metadata && parsed.metadata.usage) {
+                        console.log('💰 [STREAMING] Found usage data in message_end event:', JSON.stringify(parsed.metadata.usage));
+                        finalData.metadata = {
+                          ...finalData.metadata,
+                          usage: parsed.metadata.usage
+                        };
+                      }
                     }
 
                     // Forward the parsed data to client
@@ -1646,6 +1856,9 @@ app.post('/api/dify/workflow', async (req, res) => {
 
           data = await response.json();
           console.log('✅ Successfully received workflow response from Dify API');
+          
+          // 🔧 BILLING: 处理积分扣除
+          const billingInfo = await handleTokenBilling(data, user, 'WORKFLOW');
           
         } catch (apiError) {
           console.error('[Workflow API] External API failed:', apiError.message);
@@ -1898,11 +2111,35 @@ app.post('/api/dify/:conversationId/stream', async (req, res) => {
 
       // Handle Dify conversation expiry - reject to maintain chatflow state
       if (errorData.code === 'not_found' && errorData.message?.includes('Conversation')) {
-        console.log('❌ Stream: Conversation not found in DIFY - this breaks chatflow continuity');
-        console.log('🚨 Stream: Rejecting request to maintain proper chatflow state management');
+        console.log('❌ Stream: Conversation not found in DIFY - attempting recovery');
+        console.log('🔄 Stream: Creating new conversation to replace expired one');
         
-        // Return the error to frontend instead of silently creating new conversation
-        throw new Error(`Dify conversation not found: ${errorData.message}`);
+        // Remove conversation_id and retry as new conversation  
+        delete requestBody.conversation_id;
+        console.log('🆕 Stream: Retrying without conversation_id to create fresh conversation');
+        
+        // Retry the request without conversation_id
+        const retryResponse = await fetchWithTimeoutAndRetry(
+          `${DIFY_API_URL}/chat-messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${DIFY_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          },
+          DEFAULT_TIMEOUT
+        );
+        
+        if (!retryResponse.ok) {
+          const retryError = await retryResponse.json();
+          console.error('❌ Stream retry also failed:', retryError);
+          throw new Error(`Dify API failed even after retry: ${retryError.message}`);
+        }
+        
+        response = retryResponse; // Use the retry response
+        console.log('✅ Stream: Successfully recovered with new conversation');
       } else {
         return res.status(response.status).json({
           error: errorData.message || 'Dify API error',
@@ -2092,6 +2329,9 @@ app.post('/api/dify/:conversationId/stream', async (req, res) => {
           message_id: generateUUID(),
           metadata: {}
         };
+        
+        // 🔧 BILLING: 处理积分扣除
+        const billingInfo = await handleTokenBilling(finalData, req.body.user, 'STREAM');
         
         // Save to database immediately
         await ensureConversationExists(supabase, conversationId, finalData.conversation_id, getValidUserId(req.body.user));
@@ -2353,11 +2593,35 @@ app.post('/api/dify/:conversationId', async (req, res) => {
       console.error('Dify API error:', errorData);
 
       if (errorData.code === 'not_found' && errorData.message?.includes('Conversation')) {
-        console.log('❌ Conversation not found in DIFY - this breaks chatflow continuity');
-        console.log('🚨 Rejecting request to maintain proper chatflow state management');
+        console.log('❌ Simple: Conversation not found in DIFY - attempting recovery');
+        console.log('🔄 Simple: Creating new conversation to replace expired one');
         
-        // Return the error to frontend instead of silently creating new conversation
-        throw new Error(`Dify conversation not found: ${errorData.message}`);
+        // Remove conversation_id and retry as new conversation
+        delete apiRequestBody.conversation_id;
+        console.log('🆕 Simple: Retrying without conversation_id to create fresh conversation');
+        
+        // Retry the request without conversation_id
+        const retryResponse = await fetchWithTimeoutAndRetry(
+          `${DIFY_API_URL}/chat-messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${DIFY_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(apiRequestBody),
+          },
+          DEFAULT_TIMEOUT
+        );
+        
+        if (!retryResponse.ok) {
+          const retryError = await retryResponse.json();
+          console.error('❌ Simple retry also failed:', retryError);
+          throw new Error(`Dify API failed even after retry: ${retryError.message}`);
+        }
+        
+        response = retryResponse; // Use the retry response
+        console.log('✅ Simple: Successfully recovered with new conversation');
       } else {
         return res.status(response.status).json({
           error: errorData.message || 'Dify API error',
@@ -2367,6 +2631,9 @@ app.post('/api/dify/:conversationId', async (req, res) => {
     }
 
     const data = await response.json();
+
+    // 🔧 BILLING: 处理积分扣除
+    const billingInfo = await handleTokenBilling(data, req.body.user, 'CONVERSATION');
 
     // Ensure conversation exists and save messages
     if (supabase) {

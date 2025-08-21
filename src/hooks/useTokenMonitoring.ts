@@ -262,8 +262,13 @@ export function useTokenMonitoring(): UseTokenMonitoringReturn {
       const outputTokens = usage.completion_tokens;
       const totalTokens = usage.total_tokens;
       
+      // ✅ 使用原始真实的Token数量（不做人为调整）
+      const finalInputTokens = inputTokens;
+      const finalOutputTokens = outputTokens;
+      const finalTotalTokens = totalTokens;
+
       // 🚨 调试：检查异常高的Token使用量
-      if (totalTokens > 10000) {
+      if (finalTotalTokens > 10000) {
         console.error('🚨 异常高的Token使用量检测 - 详细分析:', {
           modelName,
           inputTokens,
@@ -274,10 +279,10 @@ export function useTokenMonitoring(): UseTokenMonitoringReturn {
           conversationId,
           messageId,
           possibleIssues: [
-            totalTokens > 50000 ? '可能是累积Token而非单次使用' : null,
+            finalTotalTokens > 50000 ? '可能是累积Token而非单次使用' : null,
             inputTokens === 0 ? '输入Token为0异常' : null,
             outputTokens === 0 ? '输出Token为0异常' : null,
-            totalTokens !== (inputTokens + outputTokens) ? 'Token总数计算不匹配' : null
+            finalTotalTokens !== (inputTokens + outputTokens) ? 'Token总数计算不匹配' : null
           ].filter(Boolean),
           timestamp: new Date().toISOString()
         });
@@ -294,11 +299,6 @@ export function useTokenMonitoring(): UseTokenMonitoringReturn {
           建议: '检查Dify API响应格式和工作流配置'
         });
       }
-
-      // ✅ 使用原始真实的Token数量（不做人为调整）
-      const finalInputTokens = inputTokens;
-      const finalOutputTokens = outputTokens;
-      const finalTotalTokens = totalTokens;
 
       // 💰 核心计费逻辑：基于Dify返回的usage信息+25%利润
       let inputCost = 0;
