@@ -6,6 +6,8 @@ import { cn, isValidUUID, generateUUID } from '@/lib/utils';
 import { useTokenMonitoring } from '@/hooks/useTokenMonitoring';
 import { cloudChatHistory, ChatConversation } from '@/lib/cloudChatHistory';
 import { chatHistoryMigration } from '@/lib/chatHistoryMigration';
+import { authService } from '@/lib/auth';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
@@ -1688,8 +1690,65 @@ export function DifyChatInterface({
                     });
                   }
 
-                  // 🎯 最高优先级：处理结合响应头和响应体的增强token使用信息
-                  if (parsed.event === 'enhanced_token_usage') {
+                  // 🔥 最高优先级：处理后端发送的余额更新信息
+                  if (parsed.event === 'balance_updated') {
+                    console.log('🔥 [Frontend-Streaming] Received balance_updated from backend:', parsed.data);
+                    
+                    if (parsed.data.newBalance !== null && parsed.data.newBalance !== undefined) {
+                      // 直接更新用户余额（跳过前端token处理）
+                      console.log('✅ [Frontend] Updating balance from backend response:', parsed.data.newBalance);
+                      
+                      // 🔧 关键修复：直接更新authService中的用户余额和localStorage
+                      const currentUser = authService.getCurrentUserSync();
+                      if (currentUser) {
+                        currentUser.balance = parsed.data.newBalance;
+                        console.log('✅ [Frontend-Stream] Updated authService balance:', parsed.data.newBalance);
+                        
+                        // 🔧 安全的localStorage更新 - 只更新余额，不影响其他状态
+                        try {
+                          const existingUserData = localStorage.getItem('currentUser');
+                          if (existingUserData) {
+                            const userData = JSON.parse(existingUserData);
+                            userData.balance = parsed.data.newBalance;
+                            localStorage.setItem('currentUser', JSON.stringify(userData));
+                            console.log('✅ [Frontend-Stream] Updated localStorage balance:', parsed.data.newBalance);
+                          }
+                        } catch (storageError) {
+                          console.warn('⚠️ Failed to update localStorage:', storageError);
+                        }
+                      }
+                      
+                      // 🔧 确保事件处理稳定性：延迟发射balance-updated事件
+                      setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('balance-updated', {
+                          detail: { 
+                            balance: parsed.data.newBalance,
+                            pointsDeducted: parsed.data.pointsDeducted,
+                            tokens: parsed.data.tokens,
+                            cost: parsed.data.cost
+                          }
+                        }));
+                        console.log('🎯 [Event] balance-updated event dispatched for streaming mode');
+                      }, 50);
+                      
+                      // 🔧 显示稳定的成功提示
+                      console.log('🎯 [Toast] Displaying streaming billing success notification');
+                      toast.success(
+                        `✅ 消费 ${parsed.data.tokens} tokens (${parsed.data.pointsDeducted} 积分)`,
+                        {
+                          description: `余额: ${parsed.data.newBalance} 积分`,
+                          duration: 3000
+                        }
+                      );
+                      
+                      // 标记token使用已处理，避免重复处理
+                      tokenUsageProcessed = true;
+                      
+                      console.log('🎯 [Frontend] Backend billing handled - skipping frontend token processing');
+                    }
+                  }
+                  // 🎯 次高优先级：处理结合响应头和响应体的增强token使用信息
+                  else if (parsed.event === 'enhanced_token_usage') {
                     console.log('[Chat Debug] 🚨 收到增强的token使用信息 (响应头+响应体):', parsed.data);
                     
                     if (parsed.data.usage && !tokenUsageProcessed) {
@@ -2026,17 +2085,88 @@ export function DifyChatInterface({
     setMessages(prev => [...prev, assistantMessage]);
     console.log('[Chat Debug] Added assistant message from regular response');
     
-    // 💰 处理blocking API的token使用
-    console.log('[Token Debug] Checking for usage data in blocking API response:', {
-      hasMetadata: !!data.metadata,
-      hasUsage: !!data.metadata?.usage,
-      metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
-      usageKeys: data.metadata?.usage ? Object.keys(data.metadata.usage) : [],
-      fullUsageData: data.metadata?.usage,
-      responseKeys: Object.keys(data)
-    });
+    // 🔥 最高优先级：处理后端发送的余额更新信息（blocking模式）
+    if (data.billing_info && data.billing_info.newBalance !== null && data.billing_info.newBalance !== undefined) {
+      console.log('🔥 [Frontend-Blocking] Received balance update from backend:', data.billing_info);
+      
+      // 直接更新用户余额
+      console.log('✅ [Frontend-Blocking] Updating balance from backend response:', data.billing_info.newBalance);
+      
+      // 🔧 关键修复：直接更新authService中的用户余额和localStorage
+      const currentUser = authService.getCurrentUserSync();
+      if (currentUser) {
+        currentUser.balance = data.billing_info.newBalance;
+        console.log('✅ [Frontend-Blocking] Updated authService balance:', data.billing_info.newBalance);
+        
+        // 同步更新localStorage - 安全方式，避免污染conversation_id状态
+        try {
+          const existingUserData = localStorage.getItem('currentUser');
+          if (existingUserData) {
+            const userData = JSON.parse(existingUserData);
+            userData.balance = data.billing_info.newBalance;
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            console.log('✅ [Frontend-Blocking] Safely updated localStorage balance:', data.billing_info.newBalance);
+          }
+        } catch (storageError) {
+          console.warn('⚠️ Failed to update localStorage:', storageError);
+        }
+      }
+      
+      // 🔧 确保事件处理稳定性：延迟发射balance-updated事件
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('balance-updated', {
+          detail: { 
+            balance: data.billing_info.newBalance,
+            pointsDeducted: data.billing_info.pointsDeducted,
+            tokens: data.billing_info.tokens,
+            cost: data.billing_info.cost
+          }
+        }));
+        console.log('🎯 [Event] balance-updated event dispatched for blocking mode');
+      }, 50);
+      
+      // 🔧 显示稳定的成功提示
+      console.log('🎯 [Toast] Displaying billing success notification');
+      toast.success(
+        `✅ 消费 ${data.billing_info.tokens} tokens (${data.billing_info.pointsDeducted} 积分)`,
+        {
+          description: `余额: ${data.billing_info.newBalance} 积分`,
+          duration: 3000
+        }
+      );
+      
+      console.log('🎯 [Frontend-Blocking] Backend billing handled - skipping frontend token processing');
+      
+    } else {
+      // ⚠️ 后端没有返回billing_info，可能是billing处理失败
+      console.warn('⚠️ [Frontend-Blocking] No billing_info received from backend - this might indicate a billing processing issue');
+      
+      // 🔧 备用方案：尝试刷新前端余额显示
+      try {
+        const currentUser = authService.getCurrentUserSync();
+        if (currentUser) {
+          console.log('🔄 [Frontend-Blocking] Attempting to refresh balance as fallback');
+          // 发射余额刷新事件，让组件重新获取最新余额
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('balance-refresh-needed', {}));
+          }, 100);
+        }
+      } catch (error) {
+        console.warn('⚠️ [Frontend-Blocking] Fallback balance refresh failed:', error);
+      }
+      
+      // 💰 回退：处理blocking API的token使用（如果后端没有发送billing_info）
+      console.log('[Token Debug] No backend billing_info found, checking for usage data in blocking API response:', {
+        hasBillingInfo: !!data.billing_info,
+        hasMetadata: !!data.metadata,
+        hasUsage: !!data.metadata?.usage,
+        metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
+        usageKeys: data.metadata?.usage ? Object.keys(data.metadata.usage) : [],
+        fullUsageData: data.metadata?.usage,
+        responseKeys: Object.keys(data)
+      });
 
-    if (data.metadata?.usage) {
+      if (data.metadata?.usage) {
       console.log('[Token] ✅ Processing blocking API token usage:', data.metadata.usage);
       try {
         // 异步处理token使用，不阻塞UI
@@ -2058,8 +2188,9 @@ export function DifyChatInterface({
       } catch (tokenError) {
         console.error('[Token] ❌ Error preparing blocking API token usage:', tokenError);
       }
-    } else {
-      console.warn('[Token] ⚠️ No usage data found in blocking API response - credits will not be deducted!');
+      } else {
+        console.warn('[Token] ⚠️ No usage data found in blocking API response - credits will not be deducted!');
+      }
     }
   };
 

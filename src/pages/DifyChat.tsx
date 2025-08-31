@@ -61,7 +61,31 @@ export default function DifyChat() {
     };
 
     loadUserAndService();
-  }, [serviceId, navigate]);
+
+    // 🔧 添加余额更新事件监听器，确保两个余额显示同步
+    const handleBalanceUpdate = (event: CustomEvent) => {
+      console.log('🔥 [DifyChat] Received balance-updated event:', {
+        currentBalance: user?.balance,
+        newBalance: event.detail.balance,
+        eventDetail: event.detail,
+        userId: user?.id,
+        timestamp: new Date().toISOString()
+      });
+      
+      // 只更新余额，不影响conversation_id状态
+      if (event.detail.balance !== undefined && typeof event.detail.balance === 'number') {
+        setUser(prev => prev ? { ...prev, balance: event.detail.balance } : null);
+        console.log('✅ [DifyChat] Header balance updated:', event.detail.balance);
+      }
+    };
+
+    window.addEventListener('balance-updated', handleBalanceUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('balance-updated', handleBalanceUpdate as EventListener);
+    };
+
+  }, [serviceId, navigate, user?.id]); // 添加user?.id依赖以确保事件处理器正确绑定
 
   // Check if Dify is configured
   // Support both chat apps (need APP_ID) and workflow apps (optional APP_ID)

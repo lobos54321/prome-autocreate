@@ -53,8 +53,79 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
 
     // 监听余额更新
     const handleBalanceUpdate = (event: CustomEvent) => {
-      if (user && event.detail.balance !== undefined) {
-        setUser(prev => prev ? { ...prev, balance: event.detail.balance } : null);
+      console.log('🔥 [PointsDisplay] Received balance-updated event:', {
+        currentBalance: user?.balance,
+        newBalance: event.detail.balance,
+        eventDetail: event.detail,
+        userId: user?.id,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (user && event.detail.balance !== undefined && typeof event.detail.balance === 'number') {
+        const oldBalance = user.balance || 0;
+        const newBalance = event.detail.balance;
+        
+        // 🔧 避免重复更新相同余额
+        if (oldBalance !== newBalance) {
+          setUser(prev => prev ? { ...prev, balance: newBalance } : null);
+          
+          const changeAmount = newBalance - oldBalance;
+          console.log('✅ [PointsDisplay] Balance updated:', {
+            oldBalance,
+            newBalance,
+            difference: changeAmount,
+            timestamp: new Date().toISOString()
+          });
+          
+          // 🔧 添加使用记录到历史中
+          if (changeAmount !== 0) {
+            const newHistoryEntry = {
+              change: changeAmount,
+              timestamp: new Date().toISOString(),
+              tokens: event.detail.tokens || 0,
+              cost: event.detail.cost || '0'
+            };
+            
+            // 🔧 确保新记录添加到历史顶部，并保持完整记录
+            setPointsHistory(prev => {
+              // 避免重复记录：检查最近记录是否相同
+              const isDuplicate = prev.length > 0 && 
+                prev[0].change === changeAmount && 
+                Math.abs(new Date(prev[0].timestamp).getTime() - new Date(newHistoryEntry.timestamp).getTime()) < 5000; // 5秒内相同记录认为重复
+              
+              if (isDuplicate) {
+                console.log('🚫 [PointsDisplay] Skipped duplicate history entry');
+                return prev;
+              }
+              
+              const updatedHistory = [newHistoryEntry, ...prev.slice(0, 19)]; // Keep last 20 entries
+              console.log('📊 [PointsDisplay] Added history entry, total records:', updatedHistory.length);
+              return updatedHistory;
+            });
+          }
+          
+          // 🔧 强制触发组件重新渲染
+          setTimeout(() => {
+            console.log('🔄 [PointsDisplay] Force re-render check:', {
+              currentUserBalance: user?.balance,
+              expectedBalance: newBalance
+            });
+          }, 100);
+        } else {
+          console.log('ℹ️ [PointsDisplay] Skipped duplicate balance update:', {
+            currentBalance: oldBalance,
+            sameAsNewBalance: newBalance
+          });
+        }
+      } else {
+        console.warn('⚠️ [PointsDisplay] Balance update ignored:', {
+          hasUser: !!user,
+          hasBalance: event.detail.balance !== undefined,
+          balanceType: typeof event.detail.balance,
+          balanceValue: event.detail.balance,
+          userId: user?.id,
+          eventDetail: event.detail
+        });
       }
     };
 
@@ -118,6 +189,16 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
   }
 
   const pointsValue = (user && typeof user.balance === 'number') ? user.balance : 0;
+  
+  // 🔧 调试：记录余额显示状态
+  console.log('🔍 [PointsDisplay] Current render state:', {
+    userExists: !!user,
+    userId: user?.id,
+    userBalance: user?.balance,
+    displayedPoints: pointsValue,
+    balanceType: typeof user?.balance,
+    timestamp: new Date().toISOString()
+  });
   const usdEquivalent = pointsValue / exchangeRate;
   const recentChange = pointsHistory.length > 0 ? pointsHistory[0].change : 0;
 

@@ -549,18 +549,34 @@ export function useTokenMonitoring(): UseTokenMonitoringReturn {
         error: null
       }));
 
-      // Show success toast
-      toast.success(
-        `Token已消费: ${finalTotalTokens} tokens (${pointsToDeduct} 积分)`,
-        {
-          description: `余额: ${result.newBalance} 积分`
-        }
-      );
+      // 🎯 显示积分扣除提示 - 只修改UI显示，不影响用户状态
+      console.log('🎯 [Frontend Hook] Displaying token usage notification');
+      toast.success(`✅ 消费 ${finalTotalTokens} tokens (${pointsToDeduct} 积分)`, {
+        description: `余额: ${result.newBalance} 积分`,
+        duration: 3000,
+      });
 
       // Emit balance update event for global listeners
+      console.log('🔥 [Frontend] Emitting balance-updated event:', {
+        newBalance: result.newBalance,
+        pointsDeducted: pointsToDeduct,
+        modelName,
+        timestamp: new Date().toISOString()
+      });
+      
       window.dispatchEvent(new CustomEvent('balance-updated', {
         detail: { balance: result.newBalance, usage: usageEvent }
       }));
+      
+      // 🔧 追加：强制刷新认证服务中的用户余额缓存
+      // 注意：当后端使用guest用户系统时，余额在后端内存中，不在数据库中
+      try {
+        await authService.refreshBalance();
+        console.log('✅ [Frontend] Auth service balance cache refreshed');
+      } catch (refreshError) {
+        console.warn('⚠️ [Frontend] Failed to refresh auth service balance cache (this is expected for guest users):', refreshError);
+        // 对于guest用户，这是正常的，因为余额在后端内存中而不是数据库中
+      }
 
       return { success: true, newBalance: result.newBalance };
 

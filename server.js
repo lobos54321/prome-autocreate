@@ -586,14 +586,77 @@ async function saveMessages(supabase, conversationId, userMessage, difyResponse)
   }
 }
 
+// 🔧 全局billing监控
+if (!global.billingTracker) {
+  global.billingTracker = {
+    totalCalls: 0,
+    successfulCalls: 0,
+    failedCalls: 0,
+    emergencyFallbacks: 0,
+    callHistory: []
+  };
+}
+
 // 🔧 UNIFIED BILLING: 统一的积分扣除函数
-async function handleTokenBilling(responseData, user, endpoint = 'unknown') {
-  if (responseData && responseData.metadata && responseData.metadata.usage && responseData.metadata.usage.total_tokens) {
-    const totalTokens = responseData.metadata.usage.total_tokens;
-    const actualCost = Number(responseData.metadata.usage.total_price || (totalTokens * 0.000002175));
+async function handleTokenBilling(responseData, user, endpoint = 'unknown', options = {}) {
+  const { emergencyFallback = false } = options;
+  
+  // 🔧 全局tracking：记录每次billing调用
+  global.billingTracker.totalCalls++;
+  if (emergencyFallback) {
+    global.billingTracker.emergencyFallbacks++;
+  }
+  
+  const callId = `${endpoint}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  console.log(`🎯 [BILLING-TRACKER] Call #${global.billingTracker.totalCalls}: ${callId}`);
+  console.log(`🔍 [BILLING-${endpoint}] Checking responseData structure:`, {
+    hasResponseData: !!responseData,
+    hasMetadata: !!(responseData?.metadata),
+    hasUsage: !!(responseData?.metadata?.usage), 
+    hasTotalTokens: !!(responseData?.metadata?.usage?.total_tokens),
+    hasUsageField: !!(responseData?.usage), // 检查直接在responseData下的usage字段
+    responseDataKeys: responseData ? Object.keys(responseData) : [],
+    metadataKeys: responseData?.metadata ? Object.keys(responseData.metadata) : [],
+    usageKeys: responseData?.metadata?.usage ? Object.keys(responseData.metadata.usage) : []
+  });
+
+  // 🔧 增强条件检查：支持多种数据结构
+  let totalTokens = null;
+  let actualCost = null;
+  let usage = null;
+
+  // 检查 metadata.usage (标准位置)
+  if (responseData?.metadata?.usage?.total_tokens) {
+    usage = responseData.metadata.usage;
+    totalTokens = usage.total_tokens;
+    actualCost = Number(usage.total_price || (totalTokens * 0.000002175));
+    console.log(`✅ [BILLING-${endpoint}] Found usage in metadata.usage`);
+  }
+  // 检查直接在responseData下的usage字段
+  else if (responseData?.usage?.total_tokens) {
+    usage = responseData.usage;
+    totalTokens = usage.total_tokens;
+    actualCost = Number(usage.total_price || (totalTokens * 0.000002175));
+    console.log(`✅ [BILLING-${endpoint}] Found usage in responseData.usage`);
+  }
+  // 最后的fallback：如果没有usage但有其他token相关字段
+  else if (responseData && (responseData.token_usage || responseData.tokens)) {
+    const tokens = responseData.token_usage?.total_tokens || responseData.tokens || 100; // fallback默认值
+    totalTokens = tokens;
+    actualCost = tokens * 0.000002175; // 使用默认价格
+    console.log(`⚠️ [BILLING-${endpoint}] Using fallback token calculation: ${tokens} tokens`);
+  }
+
+  if (totalTokens && totalTokens > 0) {
     const pointsToDeduct = Math.ceil(actualCost * 10000); // 🔧 CORRECT FORMULA: 美金成本 × 10000 = 积分
     
-    console.log(`💰 [BILLING-${endpoint}] Multi-node LLM: ${totalTokens} tokens`);
+    // 🔧 Emergency fallback特殊标记
+    if (emergencyFallback) {
+      console.log(`🚨 [BILLING-${endpoint}] EMERGENCY FALLBACK billing: ${totalTokens} tokens`);
+      console.log(`⚠️ [BILLING-${endpoint}] This billing was triggered by context management failure`);
+    } else {
+      console.log(`💰 [BILLING-${endpoint}] Multi-node LLM: ${totalTokens} tokens`);
+    }
     console.log(`💰 [COST-${endpoint}] Actual cost: $${actualCost.toFixed(6)} = ${pointsToDeduct} points`);
     
     const userId = getValidUserId(user);
@@ -613,14 +676,48 @@ async function handleTokenBilling(responseData, user, endpoint = 'unknown') {
           
         if (balanceError) {
           console.log(`⚠️  [BILLING-${endpoint}] User not found in database: ${userId}`);
-          // Create user record with default balance if not exists
-          await supabaseClient.from('users').insert({
-            id: userId,
-            balance: 10000 - pointsToDeduct, // Start with 10k, deduct current cost
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+          
+          // 🔧 新策略：为临时用户创建游客记录，或跳过计费但记录使用
+          console.log(`💡 [BILLING-${endpoint}] Creating guest user session for: ${userId}`);
+          
+          // 临时方案：不扣除积分，但记录使用情况
+          console.log(`⚠️  [BILLING-${endpoint}] Guest user - no points deducted, usage recorded only`);
+          
+          // 在内存中记录guest用户余额
+          if (!global.guestBalances) {
+            global.guestBalances = new Map();
+          }
+          
+          const currentGuestBalance = global.guestBalances.get(userId) || 10000;
+          const newGuestBalance = Math.max(0, currentGuestBalance - pointsToDeduct);
+          global.guestBalances.set(userId, newGuestBalance);
+          
+          console.log(`📝 [BILLING-${endpoint}] Guest balance updated: ${currentGuestBalance} → ${newGuestBalance} (memory only)`);
+          
+          // 🔧 更新全局统计
+          global.billingTracker.successfulCalls++;
+          global.billingTracker.callHistory.push({
+            callId,
+            endpoint,
+            tokens: totalTokens,
+            points: pointsToDeduct,
+            success: true,
+            isGuest: true,
+            emergencyFallback,
+            timestamp: new Date().toISOString()
           });
-          console.log(`✅ [BILLING-${endpoint}] Created user with balance: ${10000 - pointsToDeduct} points`);
+          
+          console.log(`✅ [BILLING-TRACKER] Success #${global.billingTracker.successfulCalls}: ${callId}`);
+          
+          return {
+            tokens: totalTokens,
+            points: pointsToDeduct,
+            cost: actualCost.toFixed(6),
+            newBalance: newGuestBalance,
+            success: true,
+            isGuest: true,
+            emergencyFallback
+          };
         } else {
           const currentBalance = userBalance.balance || 0;
           const newBalance = Math.max(0, currentBalance - pointsToDeduct);
@@ -629,32 +726,192 @@ async function handleTokenBilling(responseData, user, endpoint = 'unknown') {
           const { error: updateError } = await supabaseClient
             .from('users')
             .update({ 
-              balance: newBalance,
-              updated_at: new Date().toISOString()
+              balance: newBalance
             })
             .eq('id', userId);
             
           if (updateError) {
             console.error(`❌ [BILLING-${endpoint}] Failed to deduct points: ${updateError.message}`);
+            
+            // 🔧 更新失败统计
+            global.billingTracker.failedCalls++;
+            global.billingTracker.callHistory.push({
+              callId,
+              endpoint,
+              tokens: totalTokens,
+              points: pointsToDeduct,
+              success: false,
+              error: 'DATABASE_UPDATE_ERROR',
+              emergencyFallback,
+              timestamp: new Date().toISOString()
+            });
+            
+            console.log(`❌ [BILLING-TRACKER] Failed #${global.billingTracker.failedCalls}: ${callId} - DATABASE_UPDATE_ERROR`);
+            
+            return {
+              tokens: totalTokens,
+              points: pointsToDeduct,
+              cost: actualCost.toFixed(6),
+              newBalance: currentBalance, // 失败时返回原余额
+              success: false,
+              emergencyFallback
+            };
           } else {
             console.log(`✅ [BILLING-${endpoint}] Deducted ${pointsToDeduct} points. Balance: ${currentBalance} → ${newBalance}`);
+            
+            // 🔧 更新全局统计
+            global.billingTracker.successfulCalls++;
+            global.billingTracker.callHistory.push({
+              callId,
+              endpoint,
+              tokens: totalTokens,
+              points: pointsToDeduct,
+              success: true,
+              isGuest: false,
+              emergencyFallback,
+              balanceChange: `${currentBalance} → ${newBalance}`,
+              timestamp: new Date().toISOString()
+            });
+            
+            console.log(`✅ [BILLING-TRACKER] Success #${global.billingTracker.successfulCalls}: ${callId}`);
+            
+            return {
+              tokens: totalTokens,
+              points: pointsToDeduct,
+              cost: actualCost.toFixed(6),
+              newBalance: newBalance, // 🔧 关键修复：返回更新后的余额
+              success: true,
+              emergencyFallback
+            };
           }
         }
       } catch (dbError) {
         console.error(`❌ [BILLING-${endpoint}] Database error: ${dbError.message}`);
+        
+        // 🔧 更新失败统计
+        global.billingTracker.failedCalls++;
+        global.billingTracker.callHistory.push({
+          callId,
+          endpoint,
+          tokens: totalTokens,
+          points: pointsToDeduct,
+          success: false,
+          error: 'DATABASE_CONNECTION_ERROR',
+          emergencyFallback,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`❌ [BILLING-TRACKER] Failed #${global.billingTracker.failedCalls}: ${callId} - DATABASE_CONNECTION_ERROR`);
+        
+        return {
+          tokens: totalTokens,
+          points: pointsToDeduct,
+          cost: actualCost.toFixed(6),
+          newBalance: null, // 数据库错误时无法获取余额
+          success: false,
+          emergencyFallback
+        };
       }
     } else {
       console.log(`⚠️  [BILLING-${endpoint}] Cannot deduct points - missing database or userId`);
+      
+      // 🔧 更新失败统计
+      global.billingTracker.failedCalls++;
+      global.billingTracker.callHistory.push({
+        callId,
+        endpoint,
+        tokens: totalTokens,
+        points: pointsToDeduct,
+        success: false,
+        error: 'MISSING_DATABASE_OR_USER',
+        emergencyFallback,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`❌ [BILLING-TRACKER] Failed #${global.billingTracker.failedCalls}: ${callId} - MISSING_DATABASE_OR_USER`);
+      
+      return {
+        tokens: totalTokens,
+        points: pointsToDeduct,
+        cost: actualCost.toFixed(6),
+        newBalance: null, // 无法访问数据库
+        success: false,
+        emergencyFallback
+      };
     }
+  } else {
+    // 🚨 没有找到任何token使用信息 - 这可能导致计费遗漏！
+    console.error(`🚨 [BILLING-${endpoint}] NO TOKEN USAGE DATA FOUND! This interaction will not be billed!`);
+    console.error(`🚨 [BILLING-${endpoint}] responseData structure:`, JSON.stringify(responseData, null, 2));
+    
+    // 记录这次遗漏，用于调试和审计
+    console.error(`🚨 [BILLING-${endpoint}] POTENTIAL BILLING LOSS - endpoint: ${endpoint}, user: ${getValidUserId(user)}, timestamp: ${new Date().toISOString()}`);
+    
+    // 🔧 更新失败统计
+    global.billingTracker.failedCalls++;
+    global.billingTracker.callHistory.push({
+      callId,
+      endpoint,
+      tokens: 0,
+      points: 0,
+      success: false,
+      error: 'NO_TOKEN_DATA',
+      emergencyFallback,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log(`❌ [BILLING-TRACKER] Failed #${global.billingTracker.failedCalls}: ${callId} - NO_TOKEN_DATA`);
     
     return {
-      tokens: totalTokens,
-      points: pointsToDeduct,
-      cost: actualCost.toFixed(6)
+      tokens: 0,
+      points: 0,
+      cost: '0',
+      newBalance: null,
+      success: false,
+      error: 'NO_TOKEN_DATA',
+      endpoint: endpoint,
+      emergencyFallback
     };
   }
+  
   return null;
 }
+
+// 🔧 BILLING监控API端点
+app.get('/api/billing/stats', (req, res) => {
+  if (!global.billingTracker) {
+    return res.json({
+      error: 'Billing tracker not initialized',
+      stats: null
+    });
+  }
+
+  const tracker = global.billingTracker;
+  const successRate = tracker.totalCalls > 0 ? 
+    ((tracker.successfulCalls / tracker.totalCalls) * 100).toFixed(2) : '0.00';
+  
+  const stats = {
+    totalCalls: tracker.totalCalls,
+    successfulCalls: tracker.successfulCalls,
+    failedCalls: tracker.failedCalls,
+    emergencyFallbacks: tracker.emergencyFallbacks,
+    successRate: `${successRate}%`,
+    recentHistory: tracker.callHistory.slice(-10), // 最近10次记录
+    summary: {
+      status: tracker.failedCalls === 0 ? 'HEALTHY' : tracker.failedCalls > tracker.successfulCalls ? 'CRITICAL' : 'WARNING',
+      lastCall: tracker.callHistory.length > 0 ? tracker.callHistory[tracker.callHistory.length - 1].timestamp : null,
+      uptime: new Date().toISOString()
+    }
+  };
+
+  console.log(`📊 [BILLING-STATS] Stats requested:`, {
+    totalCalls: stats.totalCalls,
+    successRate: stats.successRate,
+    status: stats.summary.status
+  });
+
+  res.json(stats);
+});
 
 // 🔧 新增：纯聊天模式端点 - 专门处理简单对话而非工作流
 app.post('/api/dify/chat/simple', async (req, res) => {
@@ -715,7 +972,35 @@ app.post('/api/dify/chat/simple', async (req, res) => {
     });
 
     // 🔧 BILLING: 处理积分扣除
-    const billingInfo = await handleTokenBilling(data, userId, 'SIMPLE');
+    let billingInfo = await handleTokenBilling(data, userId, 'SIMPLE');
+    
+    // 🚨 CRITICAL FIX: 如果SIMPLE billing失败，强制执行fallback billing
+    if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
+      console.error(`🚨 [CRITICAL] Primary billing failed for SIMPLE, executing emergency billing!`);
+      
+      // 创建强制billing数据
+      const emergencyTokens = Math.max(150, Math.ceil((message?.length || 0) / 3));
+      const emergencyData = {
+        answer: 'Emergency billing data',
+        conversation_id: 'emergency-simple-' + Date.now(),
+        message_id: generateUUID(),
+        metadata: {
+          usage: {
+            total_tokens: emergencyTokens,
+            prompt_tokens: Math.ceil(emergencyTokens * 0.4),
+            completion_tokens: Math.ceil(emergencyTokens * 0.6),
+            total_price: emergencyTokens * 0.000002175
+          }
+        },
+        billing_source: 'EMERGENCY_FORCED_BILLING'
+      };
+      
+      billingInfo = await handleTokenBilling(emergencyData, userId, 'EMERGENCY_SIMPLE', {
+        emergencyFallback: true
+      });
+      
+      console.log(`🔧 [EMERGENCY] Forced SIMPLE billing result:`, billingInfo);
+    }
 
     // 返回简化的响应格式
     return res.status(200).json({
@@ -788,7 +1073,35 @@ app.post('/api/dify/chat', async (req, res) => {
     const data = await difyResponse.json();
     
     // 🔧 BILLING: 处理积分扣除
-    const billingInfo = await handleTokenBilling(data, userIdentifier, 'CHAT');
+    let billingInfo = await handleTokenBilling(data, userIdentifier, 'CHAT');
+    
+    // 🚨 CRITICAL FIX: 如果CHAT billing失败，强制执行fallback billing
+    if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
+      console.error(`🚨 [CRITICAL] Primary billing failed for CHAT, executing emergency billing!`);
+      
+      // 创建强制billing数据
+      const emergencyTokens = Math.max(160, Math.ceil((message?.length || 0) / 3));
+      const emergencyData = {
+        answer: 'Emergency billing data',
+        conversation_id: 'emergency-chat-' + Date.now(),
+        message_id: generateUUID(),
+        metadata: {
+          usage: {
+            total_tokens: emergencyTokens,
+            prompt_tokens: Math.ceil(emergencyTokens * 0.4),
+            completion_tokens: Math.ceil(emergencyTokens * 0.6),
+            total_price: emergencyTokens * 0.000002175
+          }
+        },
+        billing_source: 'EMERGENCY_FORCED_BILLING'
+      };
+      
+      billingInfo = await handleTokenBilling(emergencyData, userIdentifier, 'EMERGENCY_CHAT', {
+        emergencyFallback: true
+      });
+      
+      console.log(`🔧 [EMERGENCY] Forced CHAT billing result:`, billingInfo);
+    }
     
     // Update conversation state in memory store
     conversationStore.set(data.conversation_id || conversationId, {
@@ -845,7 +1158,35 @@ app.post('/api/dify/chat/mock', async (req, res) => {
   };
 
   // 🔧 BILLING: 处理积分扣除 (Mock endpoint)
-  const billingInfo = await handleTokenBilling(mockResponse, userIdentifier, 'MOCK');
+  let billingInfo = await handleTokenBilling(mockResponse, userIdentifier, 'MOCK');
+  
+  // 🚨 CRITICAL FIX: 如果MOCK billing失败，强制执行fallback billing
+  if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
+    console.error(`🚨 [CRITICAL] Primary billing failed for MOCK, executing emergency billing!`);
+    
+    // 创建强制billing数据
+    const emergencyTokens = Math.max(100, Math.ceil((message?.length || 0) / 4));
+    const emergencyMockResponse = {
+      answer: 'Emergency billing data',
+      conversation_id: 'emergency-mock-' + Date.now(),
+      message_id: generateUUID(),
+      metadata: {
+        usage: {
+          total_tokens: emergencyTokens,
+          prompt_tokens: Math.ceil(emergencyTokens * 0.3),
+          completion_tokens: Math.ceil(emergencyTokens * 0.7),
+          total_price: emergencyTokens * 0.000002175
+        }
+      },
+      billing_source: 'EMERGENCY_FORCED_BILLING'
+    };
+    
+    billingInfo = await handleTokenBilling(emergencyMockResponse, userIdentifier, 'EMERGENCY_MOCK', {
+      emergencyFallback: true
+    });
+    
+    console.log(`🔧 [EMERGENCY] Forced MOCK billing result:`, billingInfo);
+  }
 
   // Store in memory (simulate the real endpoint behavior)
   conversationStore.set(conversationId, {
@@ -977,6 +1318,7 @@ app.post('/api/dify', async (req, res) => {
     const actualMessage = message || query; // Support both message and query fields
     
     console.log(`📊 Streaming mode: body=${bodyStream}, query=${queryStream}, final=${shouldStream}`);
+    console.log('🔍 Full request body:', JSON.stringify(req.body, null, 2));
     
     if (!actualMessage) {
       return res.status(400).json({ error: 'Message or query is required' });
@@ -1031,40 +1373,11 @@ app.post('/api/dify', async (req, res) => {
     // 检查是否为新对话，如果是则初始化conversation variables
     const isNewConversation = !difyConversationId;
     
-    // 🔧 动态计算conversation_info_completeness
-    let infoCompleteness = 0;
-    if (supabase && !isNewConversation) {
-      try {
-        // 从数据库获取历史对话来计算当前completeness
-        const { data: messages } = await supabase
-          .from('messages')
-          .select('content')
-          .eq('conversation_id', conversationId)
-          .eq('role', 'assistant')
-          .order('created_at', { ascending: false })
-          .limit(5);
-        
-        if (messages && messages.length > 0) {
-          // 查找最后一个COMPLETENESS值
-          for (const msg of messages) {
-            const match = msg.content.match(/COMPLETENESS:\s*(\d+)/);
-            if (match) {
-              infoCompleteness = parseInt(match[1]);
-              console.log(`📊 Found existing COMPLETENESS: ${infoCompleteness} from database`);
-              break;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('⚠️ Failed to fetch completeness from database:', err.message);
-      }
-    }
+    // ✅ 完全信任DIFY ChatFlow的自然流程管理
+    // 移除人为计算conversation_info_completeness，让Dify根据工作流配置自然管理状态
 
     let requestBody = {
-      inputs: {
-        // 🔧 关键修复：注入conversation_info_completeness变量到DIFY工作流
-        conversation_info_completeness: infoCompleteness
-      },
+      inputs: {}, // ✅ 完全信任DIFY ChatFlow的自然流程管理，不干预工作流变量
       query: actualMessage, // 🔧 用户输入使用query参数
       response_mode: shouldStream ? 'streaming' : 'blocking',
       user: getValidUserId(user)
@@ -1088,7 +1401,7 @@ app.post('/api/dify', async (req, res) => {
       response_mode: requestBody.response_mode,
       user: requestBody.user,
       conversation_id: difyConversationId || 'NEW_CONVERSATION',
-      calculated_completeness: infoCompleteness, // 🔧 显示计算得到的completeness
+      // 移除人为计算的completeness，完全信任Dify工作流
       timestamp: new Date().toISOString()
     });
     
@@ -1114,6 +1427,7 @@ app.post('/api/dify', async (req, res) => {
     if (!contextManagementResult && overflowRisk && overflowRisk.isAtRisk && overflowRisk.currentTokens > 8000) {
       console.log(`🚨 EMERGENCY: Context management failed and tokens (${overflowRisk.currentTokens}) exceed safe limit`);
       console.log('🔄 Forcing new conversation to prevent API failure');
+      console.log(`⚠️ [BILLING-WARNING] Emergency fallback triggered - ensuring billing tracking continues`);
       
       // Clear the conversation_id to force a new conversation
       delete requestBody.conversation_id;
@@ -1122,6 +1436,9 @@ app.post('/api/dify', async (req, res) => {
       // Generate a new conversation ID for our records
       conversationId = generateUUID();
       console.log(`🆕 Emergency new conversation ID: ${conversationId}`);
+      
+      // 🔧 标记这是emergency fallback，用于billing追踪
+      requestBody.emergency_fallback = true;
     }
 
     // 🔧 关键修复：确保新对话正确启动chatflow，让DIFY处理opening_statement
@@ -1407,13 +1724,98 @@ app.post('/api/dify', async (req, res) => {
             }
           }
           
-          // End the stream
-          res.write('data: [DONE]\n\n');
-          
+          // 🚨 CRITICAL FIX: 强制billing检查 - 确保每个交互都被计费 (移到[DONE]之前)
+          if (!finalData) {
+            console.error(`🚨 [BILLING-CRITICAL] No finalData found for streaming request! This would skip billing!`);
+            console.error(`🚨 [BILLING-CRITICAL] Request info:`, {
+              user: getValidUserId(user),
+              endpoint: 'WORKFLOW_STREAM',
+              hasBodyUsageData: !!bodyUsageData,
+              streamEnded,
+              timestamp: new Date().toISOString()
+            });
+            
+            // 创建强制的fallback finalData以确保billing
+            const estimatedTokens = Math.max(50, Math.ceil((actualMessage?.length || 0) / 4));
+            finalData = {
+              answer: 'Stream completed without proper finalData',
+              conversation_id: 'fallback-' + Date.now(),
+              message_id: generateUUID(),
+              metadata: {
+                usage: bodyUsageData || {
+                  total_tokens: estimatedTokens,
+                  prompt_tokens: Math.ceil(estimatedTokens * 0.3),
+                  completion_tokens: Math.ceil(estimatedTokens * 0.7),
+                  total_price: estimatedTokens * 0.000002175
+                }
+              },
+              billing_source: 'EMERGENCY_FALLBACK'
+            };
+            console.log(`🔧 [EMERGENCY-BILLING] Created fallback finalData with ${estimatedTokens} tokens`);
+          }
+
           // Save to database if we have final data
           if (finalData && supabase) {
             // 🔧 BILLING: 处理积分扣除
-            const billingInfo = await handleTokenBilling(finalData, user, 'WORKFLOW_STREAM');
+            console.log('🔍 [DEBUG] finalData structure for billing:', {
+              hasFinalData: !!finalData,
+              hasMetadata: !!(finalData?.metadata),
+              hasUsage: !!(finalData?.metadata?.usage),
+              hasTokens: !!(finalData?.metadata?.usage?.total_tokens),
+              tokensValue: finalData?.metadata?.usage?.total_tokens,
+              billingSource: finalData?.billing_source || 'NORMAL'
+            });
+            let billingInfo = await handleTokenBilling(finalData, user, 'WORKFLOW_STREAM', {
+              emergencyFallback: requestBody?.emergency_fallback || false
+            });
+            
+            // 🚨 CRITICAL FIX: 如果billing失败，强制执行fallback billing
+            if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
+              console.error(`🚨 [CRITICAL] Primary billing failed for WORKFLOW_STREAM, executing emergency billing!`);
+              console.error(`🚨 [CRITICAL] Request context:`, {
+                isNewConversation: requestBody?.conversation_id ? false : true,
+                hasConversationId: !!requestBody?.conversation_id,
+                emergencyFallback: requestBody?.emergency_fallback || false,
+                endpoint: 'WORKFLOW_STREAM'
+              });
+              
+              // 创建强制billing数据
+              const emergencyTokens = Math.max(200, Math.ceil((actualMessage?.length || 0) / 3)); // 保守估算
+              const emergencyFinalData = {
+                answer: 'Emergency billing data',
+                conversation_id: 'emergency-' + Date.now(),
+                message_id: generateUUID(),
+                metadata: {
+                  usage: {
+                    total_tokens: emergencyTokens,
+                    prompt_tokens: Math.ceil(emergencyTokens * 0.4),
+                    completion_tokens: Math.ceil(emergencyTokens * 0.6),
+                    total_price: emergencyTokens * 0.000002175
+                  }
+                },
+                billing_source: 'EMERGENCY_FORCED_BILLING'
+              };
+              
+              billingInfo = await handleTokenBilling(emergencyFinalData, user, 'EMERGENCY_STREAM', {
+                emergencyFallback: true
+              });
+              
+              console.log(`🔧 [EMERGENCY] Forced billing result:`, billingInfo);
+            }
+            
+            // 🔧 关键修复：发送余额更新信息给前端
+            if (billingInfo && billingInfo.newBalance !== null && billingInfo.success) {
+              console.log(`🔥 [STREAM] Sending balance update to frontend: ${billingInfo.newBalance}`);
+              res.write(`data: ${JSON.stringify({
+                event: 'balance_updated',
+                data: {
+                  newBalance: billingInfo.newBalance,
+                  pointsDeducted: billingInfo.points,
+                  tokens: billingInfo.tokens,
+                  cost: billingInfo.cost
+                }
+              })}\n\n`);
+            }
             
             const effectiveConversationId = finalData.conversation_id || conversationId;
             const conversationCreated = await ensureConversationExists(supabase, effectiveConversationId, finalData.conversation_id, getValidUserId(user));
@@ -1424,6 +1826,8 @@ app.post('/api/dify', async (req, res) => {
             }
           }
           
+          // End the stream with [DONE] signal (移到正确位置)
+          res.write('data: [DONE]\n\n');
           res.end();
           return;
           
@@ -1513,7 +1917,59 @@ app.post('/api/dify', async (req, res) => {
     });
 
     // 🔧 BILLING: 处理积分扣除 (使用统一计费函数)
-    const billingInfo = await handleTokenBilling(responseData, user, 'DIFY_GENERIC');
+    console.log('🔍 [DEBUG] responseData structure for billing:', {
+      hasResponseData: !!responseData,
+      hasMetadata: !!(responseData?.metadata),
+      hasUsage: !!(responseData?.metadata?.usage),
+      hasTokens: !!(responseData?.metadata?.usage?.total_tokens),
+      tokensValue: responseData?.metadata?.usage?.total_tokens
+    });
+    let billingInfo = await handleTokenBilling(responseData, user, 'DIFY_GENERIC');
+
+    // 🚨 CRITICAL FIX: 如果blocking模式billing失败，强制执行fallback billing
+    if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
+      console.error(`🚨 [CRITICAL] Primary billing failed for DIFY_GENERIC (blocking), executing emergency billing!`);
+      console.error(`🚨 [CRITICAL] Request context:`, {
+        isNewConversation: requestBody?.conversation_id ? false : true,
+        hasConversationId: !!requestBody?.conversation_id,
+        emergencyFallback: requestBody?.emergency_fallback || false,
+        endpoint: 'DIFY_GENERIC_BLOCKING'
+      });
+      
+      // 创建强制billing数据
+      const emergencyTokens = Math.max(200, Math.ceil((actualMessage?.length || 0) / 3)); // 保守估算
+      const emergencyResponseData = {
+        answer: 'Emergency billing data',
+        conversation_id: 'emergency-' + Date.now(),
+        message_id: generateUUID(),
+        metadata: {
+          usage: {
+            total_tokens: emergencyTokens,
+            prompt_tokens: Math.ceil(emergencyTokens * 0.4),
+            completion_tokens: Math.ceil(emergencyTokens * 0.6),
+            total_price: emergencyTokens * 0.000002175
+          }
+        },
+        billing_source: 'EMERGENCY_FORCED_BILLING'
+      };
+      
+      billingInfo = await handleTokenBilling(emergencyResponseData, user, 'EMERGENCY_BLOCKING', {
+        emergencyFallback: true
+      });
+      
+      console.log(`🔧 [EMERGENCY] Forced blocking billing result:`, billingInfo);
+    }
+
+    // 🔧 关键修复：blocking模式也需要在响应中包含余额更新信息
+    if (billingInfo && billingInfo.newBalance !== null && billingInfo.success) {
+      console.log(`🔥 [BLOCKING] Adding balance update to response: ${billingInfo.newBalance}`);
+      responseData.billing_info = {
+        newBalance: billingInfo.newBalance,
+        pointsDeducted: billingInfo.points,
+        tokens: billingInfo.tokens,
+        cost: billingInfo.cost
+      };
+    }
 
     res.json(responseData);
   } catch (error) {
@@ -1744,6 +2200,11 @@ app.post('/api/dify/workflow', async (req, res) => {
                     if (parsed.event === 'message' && parsed.answer) {
                       fullAnswer += parsed.answer;
                     } else if (parsed.event === 'message_end' || parsed.event === 'workflow_finished') {
+                      console.log(`🔍 [DEBUG] Creating finalData from ${parsed.event} event with metadata:`, {
+                        hasMetadata: !!parsed.metadata,
+                        hasUsage: !!(parsed.metadata?.usage),
+                        metadataKeys: parsed.metadata ? Object.keys(parsed.metadata) : []
+                      });
                       finalData = {
                         answer: fullAnswer || parsed.answer || 'Workflow completed',
                         conversation_id: parsed.conversation_id,
@@ -1858,7 +2319,35 @@ app.post('/api/dify/workflow', async (req, res) => {
           console.log('✅ Successfully received workflow response from Dify API');
           
           // 🔧 BILLING: 处理积分扣除
-          const billingInfo = await handleTokenBilling(data, user, 'WORKFLOW');
+          let billingInfo = await handleTokenBilling(data, user, 'WORKFLOW');
+          
+          // 🚨 CRITICAL FIX: 如果WORKFLOW billing失败，强制执行fallback billing
+          if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
+            console.error(`🚨 [CRITICAL] Primary billing failed for WORKFLOW, executing emergency billing!`);
+            
+            // 创建强制billing数据
+            const emergencyTokens = Math.max(220, Math.ceil((query?.length || 0) / 3));
+            const emergencyData = {
+              answer: 'Emergency billing data',
+              conversation_id: 'emergency-workflow-' + Date.now(),
+              message_id: generateUUID(),
+              metadata: {
+                usage: {
+                  total_tokens: emergencyTokens,
+                  prompt_tokens: Math.ceil(emergencyTokens * 0.4),
+                  completion_tokens: Math.ceil(emergencyTokens * 0.6),
+                  total_price: emergencyTokens * 0.000002175
+                }
+              },
+              billing_source: 'EMERGENCY_FORCED_BILLING'
+            };
+            
+            billingInfo = await handleTokenBilling(emergencyData, user, 'EMERGENCY_WORKFLOW', {
+              emergencyFallback: true
+            });
+            
+            console.log(`🔧 [EMERGENCY] Forced WORKFLOW billing result:`, billingInfo);
+          }
           
         } catch (apiError) {
           console.error('[Workflow API] External API failed:', apiError.message);
@@ -1979,10 +2468,19 @@ app.post('/api/dify/:conversationId/stream', async (req, res) => {
       }
     }
     
+    // 🔧 首先定义基础requestBody
+    let requestBody = {
+      inputs: {},
+      query: message,
+      response_mode: 'streaming',
+      user: getValidUserId(req.body.user)
+    };
+
     // 🚨 EMERGENCY FALLBACK for streaming: If context management failed and we're at high risk, force new conversation
     if (!contextManagementResult && overflowRisk && overflowRisk.isAtRisk && overflowRisk.currentTokens > 8000) {
       console.log(`🚨 STREAM EMERGENCY: Context management failed and tokens (${overflowRisk.currentTokens}) exceed safe limit`);
       console.log('🔄 Forcing new conversation to prevent streaming API failure');
+      console.log(`⚠️ [BILLING-WARNING] Stream emergency fallback triggered - ensuring billing tracking continues`);
       
       // Clear the conversation_id to force a new conversation
       difyConversationId = null;
@@ -1990,14 +2488,10 @@ app.post('/api/dify/:conversationId/stream', async (req, res) => {
       // Generate a new conversation ID for our records
       conversationId = generateUUID();
       console.log(`🆕 Stream emergency new conversation ID: ${conversationId}`);
+      
+      // 🔧 标记这是emergency fallback，用于billing追踪
+      requestBody.emergency_fallback = true;
     }
-
-    const requestBody = {
-      inputs: {},
-      query: message,
-      response_mode: 'streaming',
-      user: getValidUserId(req.body.user) // FIXED: Pass user from request body
-    };
 
     // 只有在 dify_conversation_id 存在且有效时才添加
     if (difyConversationId && supabase) {
@@ -2323,15 +2817,45 @@ app.post('/api/dify/:conversationId/stream', async (req, res) => {
       console.log('🔍 Checking save conditions - finalData:', !!finalData, 'currentConversationId:', currentConversationId, 'message:', !!message);
       if (!finalData && currentConversationId && message) {
         console.log('🔧 Stream ended naturally without [DONE], saving conversation_id:', currentConversationId);
+        console.log('⚠️ [BILLING-DEBUG] Stream ended without token usage data - using fallback billing!');
+        
+        // 🔧 关键修复：为无usage数据的stream提供fallback billing
+        const estimatedTokens = Math.max(100, Math.ceil((fullAnswer?.length || 0) / 4)); // 粗略估算：1 token ≈ 4 字符
+        console.log(`📊 [BILLING-FALLBACK] Estimating ${estimatedTokens} tokens for stream without usage data`);
+        
         finalData = {
           answer: fullAnswer || 'Stream completed',
           conversation_id: currentConversationId,
           message_id: generateUUID(),
-          metadata: {}
+          metadata: {
+            usage: {
+              total_tokens: estimatedTokens,
+              prompt_tokens: Math.ceil(estimatedTokens * 0.3), // 估算30%为input
+              completion_tokens: Math.ceil(estimatedTokens * 0.7), // 估算70%为output
+              total_price: estimatedTokens * 0.000002175 // 使用标准价格
+            }
+          },
+          // 标记这是fallback数据，用于审计
+          billing_source: 'STREAM_FALLBACK'
         };
         
-        // 🔧 BILLING: 处理积分扣除
-        const billingInfo = await handleTokenBilling(finalData, req.body.user, 'STREAM');
+        // 🔧 BILLING: 处理积分扣除（现在有fallback usage数据了）
+        const billingInfo = await handleTokenBilling(finalData, req.body.user, 'STREAM_FALLBACK');
+        
+        // 🔧 关键修复：为fallback billing也发送balance_updated事件
+        if (billingInfo && billingInfo.newBalance !== null && billingInfo.success) {
+          console.log(`🔥 [STREAM-FALLBACK] Sending balance update to frontend: ${billingInfo.newBalance}`);
+          res.write(`data: ${JSON.stringify({
+            event: 'balance_updated',
+            data: {
+              newBalance: billingInfo.newBalance,
+              pointsDeducted: billingInfo.points,
+              tokens: billingInfo.tokens,
+              cost: billingInfo.cost,
+              source: 'STREAM_FALLBACK'
+            }
+          })}\n\n`);
+        }
         
         // Save to database immediately
         await ensureConversationExists(supabase, conversationId, finalData.conversation_id, getValidUserId(req.body.user));
@@ -2523,6 +3047,7 @@ app.post('/api/dify/:conversationId', async (req, res) => {
     if (!contextManagementResult && overflowRisk && overflowRisk.isAtRisk && overflowRisk.currentTokens > 8000) {
       console.log(`🚨 CHAT EMERGENCY: Context management failed and tokens (${overflowRisk.currentTokens}) exceed safe limit`);
       console.log('🔄 Forcing new conversation to prevent chat API failure');
+      console.log(`⚠️ [BILLING-WARNING] Chat emergency fallback triggered - ensuring billing tracking continues`);
       
       // Clear the conversation_id to force a new conversation  
       difyConversationId = null;
@@ -2530,6 +3055,9 @@ app.post('/api/dify/:conversationId', async (req, res) => {
       // Generate a new conversation ID for our records
       conversationId = generateUUID();
       console.log(`🆕 Chat emergency new conversation ID: ${conversationId}`);
+      
+      // 🔧 标记这是emergency fallback，用于billing追踪
+      requestBody.emergency_fallback = true;
     }
 
     const requestBody = {
@@ -2633,7 +3161,35 @@ app.post('/api/dify/:conversationId', async (req, res) => {
     const data = await response.json();
 
     // 🔧 BILLING: 处理积分扣除
-    const billingInfo = await handleTokenBilling(data, req.body.user, 'CONVERSATION');
+    let billingInfo = await handleTokenBilling(data, req.body.user, 'CONVERSATION');
+    
+    // 🚨 CRITICAL FIX: 如果CONVERSATION billing失败，强制执行fallback billing
+    if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
+      console.error(`🚨 [CRITICAL] Primary billing failed for CONVERSATION, executing emergency billing!`);
+      
+      // 创建强制billing数据
+      const emergencyTokens = Math.max(180, Math.ceil((message?.length || 0) / 3));
+      const emergencyData = {
+        answer: 'Emergency billing data',
+        conversation_id: 'emergency-conversation-' + Date.now(),
+        message_id: generateUUID(),
+        metadata: {
+          usage: {
+            total_tokens: emergencyTokens,
+            prompt_tokens: Math.ceil(emergencyTokens * 0.4),
+            completion_tokens: Math.ceil(emergencyTokens * 0.6),
+            total_price: emergencyTokens * 0.000002175
+          }
+        },
+        billing_source: 'EMERGENCY_FORCED_BILLING'
+      };
+      
+      billingInfo = await handleTokenBilling(emergencyData, req.body.user, 'EMERGENCY_CONVERSATION', {
+        emergencyFallback: true
+      });
+      
+      console.log(`🔧 [EMERGENCY] Forced CONVERSATION billing result:`, billingInfo);
+    }
 
     // Ensure conversation exists and save messages
     if (supabase) {
