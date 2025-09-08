@@ -374,7 +374,14 @@ export default function DifyChat() {
             }
             welcomeMessage={service 
               ? `您好！我是${service.name}。${service.description}有什么可以帮助您的吗？`
-              : "您好！我是您的AI助手。我支持普通聊天和复杂工作流处理。有什么可以帮助您的吗？"
+              : `Hi! I am your marketing content AI assistant. To create effective copywriting for you, I need to collect 4 key pieces of information:
+
+1. **Your Product**: What product or service are you promoting?
+2. **Product Features**: What are the key features or advantages of your product?
+3. **Target Audience**: Who is your target customer group?
+4. **Content Length**: How many words do you need for the copy?
+
+Please share these details to start creating your marketing content!`
             }
           />
         </div>

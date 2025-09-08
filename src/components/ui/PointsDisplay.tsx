@@ -82,9 +82,11 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
             const newHistoryEntry = {
               change: changeAmount,
               timestamp: new Date().toISOString(),
-              tokens: event.detail.tokens || 0,
-              cost: event.detail.cost || '0'
+              tokens: event.detail.usage?.total_tokens || event.detail.tokens || 0,
+              cost: event.detail.usage?.total_price || event.detail.cost || '0'
             };
+            
+            console.log('📊 [PointsDisplay] Creating new history entry:', newHistoryEntry);
             
             // 🔧 确保新记录添加到历史顶部，并保持完整记录
             setPointsHistory(prev => {
@@ -132,8 +134,8 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
     window.addEventListener('auth-state-changed', handleAuthChange as EventListener);
     window.addEventListener('balance-updated', handleBalanceUpdate as EventListener);
     
-    // 模拟积分历史数据
-    loadPointsHistory();
+    // 🔧 修复：不再载入模拟数据，只使用真实的历史记录
+    // loadPointsHistory(); // 已注释掉：使用真实数据而非模拟数据
 
     return () => {
       window.removeEventListener('auth-state-changed', handleAuthChange as EventListener);

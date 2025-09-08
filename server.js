@@ -1335,19 +1335,27 @@ app.post('/api/dify', async (req, res) => {
       supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     }
 
-    // 🔧 CRITICAL FIX: Separate internal conversation_id from DIFY conversation_id
-    let conversationId = conversation_id && isValidUUID(conversation_id) ? conversation_id : generateUUID();
-    let difyConversationId = null; // Will be retrieved from database
+    // 🔥 关键修复：当前端明确传递null时，表示要开始全新对话，不要查找数据库
+    let conversationId = null;
+    let difyConversationId = null;
+    let isExplicitNewConversation = conversation_id === null;
     
-    // Log UUID generation for debugging
-    if (conversation_id && !isValidUUID(conversation_id)) {
-      console.log(`🔧 Generated new UUID for invalid conversation ID: ${conversation_id} -> ${conversationId}`);
-    } else if (!conversation_id) {
-      console.log(`🆕 Generated new conversation UUID: ${conversationId}`);
+    if (isExplicitNewConversation) {
+      // 前端明确要求新对话，生成新的内部conversation ID但不查找数据库
+      conversationId = generateUUID();
+      console.log(`🆕 前端要求新对话 - 生成全新conversation ID: ${conversationId}，不查找数据库`);
+    } else if (conversation_id && isValidUUID(conversation_id)) {
+      // 前端传递了有效的conversation_id，使用它并查找对应的difyConversationId
+      conversationId = conversation_id;
+      console.log(`🔄 继续现有对话: ${conversationId}`);
+    } else {
+      // 前端传递了无效的conversation_id，生成新的
+      conversationId = generateUUID();
+      console.log(`🔧 无效conversation_id，生成新的: ${conversationId}`);
     }
 
-    // If we have a conversation_id, check if it exists in our database  
-    if (conversationId && supabase) {
+    // 只有在不是明确新对话时才查找数据库
+    if (!isExplicitNewConversation && conversationId && supabase) {
       console.log(`🔍 Looking up conversation in database: ${conversationId}`);
       try {
         const { data: conversationRow, error } = await supabase
@@ -1371,7 +1379,7 @@ app.post('/api/dify', async (req, res) => {
 
     // 🔧 DIFY API 正确用法：为新对话确保conversation variables正确初始化
     // 检查是否为新对话，如果是则初始化conversation variables
-    const isNewConversation = !difyConversationId;
+    const isNewConversation = isExplicitNewConversation || !difyConversationId;
     
     // ✅ 完全信任DIFY ChatFlow的自然流程管理
     // 移除人为计算conversation_info_completeness，让Dify根据工作流配置自然管理状态
@@ -2398,6 +2406,288 @@ app.post('/api/dify/workflow', async (req, res) => {
   }
 });
 
+/* 🗑️ REMOVED: Pain point regenerate endpoint - feature disabled
+app.post('/api/dify/:conversationId/regenerate-painpoints', async (req, res) => {
+  console.log('🔄 [FIXED] PAINPOINT REGENERATE - 保持WorkFlow质量:', req.params.conversationId);
+  
+  try {
+    const { conversationId } = req.params;
+    const { productInfo, userId } = req.body;
+    
+    if (!DIFY_API_URL || !DIFY_API_KEY) {
+      return res.status(500).json({ error: 'Dify API not configured' });
+    }
+    
+    // 🎯 终极方案：新conversation保证WorkFlow质量 + 快速信息收集 + 自动痛点生成
+    console.log('🎯 [ULTIMATE] Creating clean conversation with fast info collection for WorkFlow quality');
+    
+    // 从产品信息中提取关键信息，快速模拟信息收集过程
+    const productInfoLines = productInfo.split('.');
+    const simulatedInfoCollection = productInfoLines.slice(0, 4).join('. ') || productInfo;
+    
+    // 使用特殊的快速收集信号，直接触发痛点生成阶段
+    const fastCollectionSignal = `产品信息：${simulatedInfoCollection}。请直接开始痛点分析。`;
+    
+    // 🔧 新conversation + 快速信息收集，确保WorkFlow质量和LLM0执行
+    const regenerateRequestBody = {
+      inputs: {}, // 空inputs让Dify从头开始信息收集
+      query: fastCollectionSignal,
+      response_mode: 'streaming',
+      // 不传conversation_id，创建全新conversation确保干净的WorkFlow执行
+      user: `fast-collect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    };
+    
+    console.log('📤 [ULTIMATE] Fast info collection for clean WorkFlow execution:', fastCollectionSignal.substring(0, 80) + '...');
+    
+    // 设置SSE流式响应头
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
+    
+    const response = await fetchWithTimeoutAndRetry(
+      `${DIFY_API_URL}/chat-messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${DIFY_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(regenerateRequestBody)
+      },
+      30000,
+      1
+    );
+    
+    // 转发流式响应 - 创建新conversation会生成新conversation_id，但不更新主对话ID
+    if (response.body) {
+      const reader = response.body.getReader();
+      let newDifyConversationId = null;
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          // 检测新conversation_id但不更新主对话（保持workflow路由正确性）
+          const chunk = new TextDecoder().decode(value);
+          if (chunk.includes('conversation_id') && !newDifyConversationId) {
+            const match = chunk.match(/"conversation_id":\s*"([^"]+)"/);
+            if (match) {
+              newDifyConversationId = match[1];
+              console.log('🔄 New regenerate conversation created:', newDifyConversationId);
+              console.log('📌 Keeping original conversation ID for main workflow routing');
+            }
+          }
+          
+          // 直接转发数据（Dify已经是正确的SSE格式）
+          res.write(value);
+        }
+        
+        console.log('✅ Pain point regeneration completed with fresh conversation');
+        res.end();
+      } catch (streamError) {
+        console.error('Stream error:', streamError);
+        res.end();
+      }
+    } else {
+      res.end();
+    }
+    
+  } catch (error) {
+    console.error('Painpoint regenerate error:', error);
+    res.status(500).json({ error: 'Failed to regenerate pain points', details: error.message });
+  }
+});
+*/
+
+// 🎯 开始生成痛点专用endpoint - 确保进入LLM0而非LLM3
+app.post('/api/dify/:conversationId/start-painpoints', async (req, res) => {
+  console.log('🎯 START PAINPOINTS ENDPOINT CALLED:', req.params.conversationId);
+  
+  try {
+    const { conversationId } = req.params;
+    const { productInfo, userId } = req.body;
+    
+    console.log('🔍 [DEBUG] Received productInfo:', productInfo);
+    console.log('🔍 [DEBUG] userId:', userId);
+    
+    if (!DIFY_API_URL || !DIFY_API_KEY) {
+      return res.status(500).json({ error: 'Dify API not configured' });
+    }
+    
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // 1. 清除当前conversation的dify状态，确保干净开始
+    const { data: conversationRow } = await supabase
+      .from('conversations')
+      .select('dify_conversation_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+      
+    const difyConversationId = conversationRow?.dify_conversation_id;
+    
+    // 2. 如果存在dify conversation，删除它以确保干净状态
+    if (difyConversationId) {
+      console.log('🗑️ Deleting contaminated Dify conversation:', difyConversationId);
+      
+      try {
+        await fetchWithTimeoutAndRetry(
+          `${DIFY_API_URL}/conversations/${difyConversationId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${DIFY_API_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          },
+          15000,
+          2
+        );
+        console.log('✅ Contaminated conversation deleted');
+      } catch (deleteError) {
+        console.log('⚠️ Delete conversation failed:', deleteError.message);
+      }
+      
+      // 清除数据库记录
+      await supabase
+        .from('conversations')
+        .update({ dify_conversation_id: null })
+        .eq('id', conversationId);
+    }
+    
+    // 3. 通过inputs预设工作流状态，告诉Dify直接进入痛点生成阶段
+    const forcedPainPointPrompt = `基于已收集的产品信息直接生成3个痛点选项，不需要任何确认。产品信息：${productInfo}。请立即输出3个痛点的JSON格式。`;
+
+    // 4. 创建预设状态的新conversation，通过inputs告诉工作流已完成信息收集
+    const requestBody = {
+      inputs: {
+        "product_info": productInfo,
+        "completeness": "4",
+        "stage": "painpoint_generation",
+        "ready_for_painpoints": "true",
+        "force_painpoint_mode": "true",
+        "bypass_confirmation": "true",
+        "skip_info_collection": "true"
+      },
+      query: forcedPainPointPrompt,
+      response_mode: 'streaming',
+      user: userId || `clean-user-${Date.now()}`
+      // 不传conversation_id，让Dify创建全新但包含预设状态的conversation
+    };
+    
+    console.log('🚀 Creating clean conversation for pain point generation');
+    console.log('📤 Sending request to Dify with prompt:', forcedPainPointPrompt.substring(0, 100) + '...');
+    
+    // 设置SSE流式响应头
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
+    
+    console.log('🌐 Making request to Dify API...');
+    const response = await fetchWithTimeoutAndRetry(
+      `${DIFY_API_URL}/chat-messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${DIFY_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      },
+      30000,
+      1
+    );
+    
+    // 转发流式响应并更新conversation ID
+    if (response.body) {
+      console.log('📡 [DEBUG] Response body exists, starting stream processing...');
+      const reader = response.body.getReader();
+      let newDifyConversationId = null;
+      let chunkCount = 0;
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log(`📡 [DEBUG] Stream completed. Total chunks: ${chunkCount}`);
+            break;
+          }
+          
+          chunkCount++;
+          console.log(`📡 [DEBUG] Processing chunk ${chunkCount}, size: ${value.length}`);
+          
+          // 提取新的conversation_id并直接转发数据
+          const chunk = new TextDecoder().decode(value);
+          if (chunk.includes('conversation_id') && !newDifyConversationId) {
+            const match = chunk.match(/"conversation_id":\s*"([^"]+)"/);
+            if (match) {
+              newDifyConversationId = match[1];
+              console.log('🆕 New clean conversation ID:', newDifyConversationId);
+            }
+          }
+          
+          // 直接转发数据（Dify已经是正确的SSE格式）
+          console.log(`📤 [DEBUG] Forwarding chunk ${chunkCount} to frontend`);
+          res.write(value);
+        }
+        
+        // 更新数据库
+        if (newDifyConversationId) {
+          await supabase
+            .from('conversations')
+            .update({ dify_conversation_id: newDifyConversationId })
+            .eq('id', conversationId);
+          console.log('✅ Clean conversation ID saved to database');
+        }
+        
+        res.end();
+      } catch (streamError) {
+        console.error('❌ [DEBUG] Stream error:', streamError);
+        console.error('❌ [DEBUG] Stream error stack:', streamError.stack);
+        res.end();
+      }
+    } else {
+      console.log('❌ [DEBUG] No response body from Dify API');
+      res.end();
+    }
+    
+  } catch (error) {
+    console.error('❌ [DEBUG] Start painpoints error:', error);
+    res.status(500).json({ error: 'Failed to start pain points generation', details: error.message });
+  }
+});
+
+// 🔧 对话状态清理endpoint - 重置conversation为干净状态
+app.post('/api/dify/:conversationId/reset-workflow', async (req, res) => {
+  console.log('🔧 WORKFLOW RESET ENDPOINT CALLED:', req.params.conversationId);
+  
+  try {
+    const { conversationId } = req.params;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // 清除数据库中的dify_conversation_id，下次请求时会创建新的
+    const updateResult = await supabase
+      .from('conversations')
+      .update({ dify_conversation_id: null })
+      .eq('id', conversationId);
+    
+    if (updateResult.error) {
+      console.error('❌ Failed to reset conversation:', updateResult.error);
+      return res.status(500).json({ error: 'Failed to reset conversation' });
+    }
+    
+    console.log('✅ Conversation workflow state reset successfully');
+    res.json({ success: true, message: 'Workflow state reset' });
+    
+  } catch (error) {
+    console.error('Workflow reset error:', error);
+    res.status(500).json({ error: 'Failed to reset workflow state' });
+  }
+});
 
 // Dify chat proxy API (streaming)
 app.post('/api/dify/:conversationId/stream', async (req, res) => {
@@ -3272,10 +3562,19 @@ app.post('/api/payment/stripe', async (req, res) => {
 
 // 其它 API 路由可继续添加...
 
+// 健康检查端点 - 必须在SPA路由之前
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    server: 'prome-backend' 
+  });
+});
+
 // 静态文件服务
 app.use(express.static(path.join(dirname, 'dist')));
 
-// SPA 路由
+// SPA 路由 - 必须在所有API路由之后
 app.get('*', (req, res) => {
  res.sendFile(path.join(dirname, 'dist', 'index.html'));
 });
