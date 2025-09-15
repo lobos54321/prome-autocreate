@@ -8,8 +8,10 @@ import { Check, ArrowRight, CreditCard, Zap } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { adminServicesAPI } from '@/lib/admin-services';
 import { RechargePackage, User } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 export default function Pricing() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(authService.getCurrentUserSync());
   const [rechargePackages, setRechargePackages] = useState<RechargePackage[]>([]);
@@ -18,6 +20,17 @@ export default function Pricing() {
   const [customCredits, setCustomCredits] = useState<number>(0);
 
   const minimumUSD = 0.5; // 🔧 Stripe最低要求：50美分
+
+  // 翻译套餐名称
+  const translatePackageName = (name: string) => {
+    const translations: { [key: string]: string } = {
+      '基础套餐': t('pricing.basic_plan'),
+      '推荐套餐': t('pricing.popular_plan'), 
+      '高级套餐': t('pricing.advanced_plan'),
+      '专业套餐': t('pricing.professional_plan')
+    };
+    return translations[name] || name;
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -72,7 +85,7 @@ export default function Pricing() {
   const handleCustomRecharge = () => {
     const amount = parseFloat(customAmount);
     if (amount < minimumUSD) {
-      alert(`最低充值金额为 $${minimumUSD}`);
+      alert(`${t('pricing.insufficient_amount')} $${minimumUSD}`);
       return;
     }
 
@@ -89,15 +102,15 @@ export default function Pricing() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold mb-4">积分充值</h1>
+        <h1 className="text-3xl font-bold mb-4">{t('pricing.title')}</h1>
         <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-          选择适合您需求的积分充值方案，立即开始使用ProMe智能创作平台
+          {t('pricing.subtitle')}
         </p>
         {user && (
           <div className="mt-4 inline-flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg">
             <CreditCard className="h-5 w-5 text-blue-600" />
-            <span className="text-blue-700">当前积分余额：</span>
-            <span className="font-semibold text-blue-800">{user.balance?.toLocaleString() || 0} 积分</span>
+            <span className="text-blue-700">{t('pricing.current_balance')}:</span>
+            <span className="font-semibold text-blue-800">{user.balance?.toLocaleString() || 0} {t('pricing.credits')}</span>
           </div>
         )}
       </div>
@@ -112,25 +125,25 @@ export default function Pricing() {
             >
               {pkg.isPopular && (
                 <div className="bg-blue-500 text-white text-center py-1 text-sm font-medium">
-                  推荐方案
+                  {t('pricing.popular')}
                 </div>
               )}
               <CardHeader className="text-center">
-                <CardTitle>{pkg.name}</CardTitle>
+                <CardTitle>{translatePackageName(pkg.name)}</CardTitle>
                 <CardDescription className="text-2xl font-bold text-green-600">
                   ${pkg.usdAmount}
                 </CardDescription>
                 <div className="text-sm text-gray-600">
-                  获得 {pkg.creditsAmount.toLocaleString()} 积分
+                  {pkg.creditsAmount.toLocaleString()} {t('pricing.credits')}
                 </div>
               </CardHeader>
               <CardContent className="text-center">
                 <div className="text-sm text-gray-500 mb-2">
-                  约 1 积分 ≈ ${(10 / exchangeRate).toFixed(4)}
+                  {t('pricing.about_per_credit')} ${(10 / exchangeRate).toFixed(4)}
                 </div>
                 {pkg.discount && (
                   <div className="text-xs text-green-600 font-medium">
-                    节省 {pkg.discount}%
+                    {t('pricing.best_value')} {pkg.discount}%
                   </div>
                 )}
               </CardContent>
@@ -139,7 +152,7 @@ export default function Pricing() {
                   className={`w-full ${pkg.isPopular ? 'bg-blue-500 hover:bg-blue-600' : ''}`}
                   onClick={() => handleSelectPackage(pkg.id)}
                 >
-                  立即充值
+                  {t('pricing.purchase_now')}
                 </Button>
               </CardFooter>
             </Card>
@@ -151,28 +164,28 @@ export default function Pricing() {
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2">
               <Zap className="h-5 w-5 text-yellow-500" />
-              自定义充值
+              {t('pricing.custom_amount')}
             </CardTitle>
-            <CardDescription>输入任意金额进行充值（最低 ${minimumUSD}）</CardDescription>
+            <CardDescription>{t('pricing.minimum_amount')} ${minimumUSD}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="customAmount">充值金额 (USD)</Label>
+              <Label htmlFor="customAmount">{t('pricing.custom_amount')} ({t('pricing.usd')})</Label>
               <Input
                 id="customAmount"
                 type="number"
                 min={minimumUSD}
                 step="0.01"
-                placeholder={`最低 $${minimumUSD}`}
+                placeholder={`${t('pricing.minimum_amount')} $${minimumUSD}`}
                 value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value)}
               />
             </div>
             {customCredits > 0 && (
               <div className="bg-gray-50 p-3 rounded-lg text-center">
-                <p className="text-sm text-gray-600">您将获得</p>
+                <p className="text-sm text-gray-600">{t('pricing.calculate_credits')}</p>
                 <p className="text-lg font-bold text-green-600">
-                  {customCredits.toLocaleString()} 积分
+                  {customCredits.toLocaleString()} {t('pricing.credits')}
                 </p>
               </div>
             )}
@@ -183,7 +196,7 @@ export default function Pricing() {
               onClick={handleCustomRecharge}
               disabled={!customAmount || parseFloat(customAmount) < minimumUSD}
             >
-              自定义充值
+              {t('pricing.purchase_credits')}
             </Button>
           </CardFooter>
         </Card>
@@ -191,49 +204,49 @@ export default function Pricing() {
         {/* Credits Usage Info */}
         <Card className="max-w-4xl mx-auto">
           <CardHeader>
-            <CardTitle>积分使用说明</CardTitle>
+            <CardTitle>{t('pricing.usage_instructions')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-medium mb-3">如何消耗积分？</h4>
+                <h4 className="font-medium mb-3">{t('pricing.how_to_consume')}</h4>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    使用AI服务生成内容时自动扣除
+                    {t('pricing.consume_auto')}
                   </li>
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    根据所使用的AI模型和生成内容长度计费
+                    {t('pricing.consume_model')}
                   </li>
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    更高级的模型消耗更多积分，效果更好
+                    {t('pricing.consume_advanced')}
                   </li>
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    积分余额不足时会提示充值
+                    {t('pricing.consume_insufficient')}
                   </li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-medium mb-3">积分优势</h4>
+                <h4 className="font-medium mb-3">{t('pricing.credits_advantages')}</h4>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    按需付费，无需固定月费
+                    {t('pricing.advantage_paygo')}
                   </li>
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    积分永不过期，可长期使用
+                    {t('pricing.advantage_noexpiry')}
                   </li>
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    透明计费，实时查看余额
+                    {t('pricing.advantage_transparent')}
                   </li>
                   <li className="flex items-start">
                     <Check className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    支持多种充值金额，灵活便捷
+                    {t('pricing.advantage_flexible')}
                   </li>
                 </ul>
               </div>
@@ -243,12 +256,12 @@ export default function Pricing() {
       </div>
 
       <div className="mt-20 text-center">
-        <h2 className="text-2xl font-bold mb-4">还有疑问？</h2>
+        <h2 className="text-2xl font-bold mb-4">{t('pricing.questions_title')}</h2>
         <p className="mb-6 max-w-2xl mx-auto">
-          如果您对我们的积分充值有任何疑问，或需要企业级定制方案，请联系我们的客服团队
+          {t('pricing.questions_subtitle')}
         </p>
         <Button variant="outline" size="lg">
-          联系客服
+          {t('pricing.contact_support')}
           <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
       </div>

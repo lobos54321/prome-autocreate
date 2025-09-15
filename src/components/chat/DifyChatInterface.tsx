@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { usePainPointBranches } from '../../hooks/usePainPointBranches';
 import { PainPointTabNavigation } from './PainPointTabNavigation';
 import { PainPointBranchContent } from './PainPointBranchContent';
+import { useTranslation } from 'react-i18next';
 
 interface Message {
   id: string;
@@ -97,6 +98,7 @@ export function DifyChatInterface({
   enableRetry = true,
   user
 }: DifyChatInterfaceProps) {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -3652,25 +3654,6 @@ export function DifyChatInterface({
         </div>
       </form>
 
-      {/* Debug Info (仅开发环境) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="px-4 py-2 bg-gray-100 text-xs text-gray-600 border-t space-y-1">
-          <div>Mode: {mode}</div>
-          <div>User ID: {userId}</div>
-          <div>User ID Ready: {isUserIdReady ? 'Yes' : 'No'}</div>
-          <div>Conversation ID: {conversationId || 'None'}</div>
-          <div>Stored Regular Conv ID: {typeof window !== 'undefined' ? localStorage.getItem('dify_conversation_id') || 'None' : 'N/A'}</div>
-          <div>Messages: {messages.length}</div>
-          <div>Retry Count: {retryCount}</div>
-          {workflowState.isWorkflow && (
-            <>
-              <div>Workflow Nodes: {workflowState.nodes.length}</div>
-              <div>Completed: {workflowState.completedNodes}</div>
-              <div>Current Node: {workflowState.currentNodeId || 'None'}</div>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }

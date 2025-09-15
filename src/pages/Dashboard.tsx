@@ -20,8 +20,10 @@ import { servicesAPI } from '@/lib/services';
 import { authService } from '@/lib/auth';
 
 import { useAuth } from '@/hooks/use-auth';
+import { useTranslation } from 'react-i18next';
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
 
@@ -76,7 +78,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-center min-h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">验证用户身份...</p>
+            <p className="text-gray-600">{t('dashboard.verifying_identity')}</p>
           </div>
         </div>
       </div>
@@ -90,7 +92,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-center min-h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">加载中...</p>
+            <p className="text-gray-600">{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -148,14 +150,14 @@ export default function Dashboard() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">控制台</h1>
-        <p className="text-gray-600">管理您的账户和使用情况</p>
+        <h1 className="text-3xl font-bold mb-2">{t('dashboard.title')}</h1>
+        <p className="text-gray-600">{t('dashboard.subtitle')}</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">账户余额</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.account_balance')}</CardTitle>
             <div className="flex items-center space-x-2">
               <Button
                 variant="ghost"
@@ -163,7 +165,7 @@ export default function Dashboard() {
                 className="h-6 w-6 p-0"
                 onClick={refreshBalance}
                 disabled={isRefreshingBalance}
-                title="刷新余额"
+                title={t('dashboard.refresh_balance')}
               >
                 <RefreshCw className={`h-3 w-3 ${isRefreshingBalance ? 'animate-spin' : ''}`} />
               </Button>
@@ -172,13 +174,13 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {user && typeof user.balance === 'number' ? Math.round(user.balance).toLocaleString() : '0'} 积分
+              {user && typeof user.balance === 'number' ? Math.round(user.balance).toLocaleString() : '0'} {t('dashboard.credits')}
             </div>
             <p className="text-xs text-muted-foreground">
-              积分过低时会影响服务使用
+              {t('dashboard.low_balance_warning')}
             </p>
             <Button size="sm" className="mt-4" onClick={() => navigate('/settings')}>
-              充值账户
+              {t('dashboard.recharge_account')}
               <ArrowRight className="ml-2 h-3 w-3" />
             </Button>
           </CardContent>
@@ -186,28 +188,28 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">本月Token使用量</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.monthly_token_usage')}</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{currentMonthUsage.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              总共使用了{usageRecords.length}个服务
+              {t('dashboard.total_services_used', { count: usageRecords.length })}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">总消费积分</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.total_consumed_credits')}</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {typeof totalSpent === 'number' ? Math.round(totalSpent).toLocaleString() : '0'} 积分
+              {typeof totalSpent === 'number' ? Math.round(totalSpent).toLocaleString() : '0'} {t('dashboard.credits')}
             </div>
             <p className="text-xs text-muted-foreground">
-              共产生{billingRecords.length}条账单
+              {t('dashboard.total_billing_records', { count: billingRecords.length })}
             </p>
           </CardContent>
         </Card>
@@ -215,8 +217,8 @@ export default function Dashboard() {
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
-          <TabsTrigger value="overview">概览</TabsTrigger>
-          <TabsTrigger value="usage">使用记录</TabsTrigger>
+          <TabsTrigger value="overview">{t('dashboard.overview')}</TabsTrigger>
+          <TabsTrigger value="usage">{t('dashboard.usage_records')}</TabsTrigger>
         </TabsList>
 
         <div className="my-4">
@@ -224,7 +226,7 @@ export default function Dashboard() {
             <div className="relative w-full max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="搜索记录..."
+                placeholder={t('dashboard.search_records')}
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -237,32 +239,32 @@ export default function Dashboard() {
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>快速操作</CardTitle>
+                <CardTitle>{t('dashboard.quick_actions')}</CardTitle>
                 <CardDescription>
-                  常用功能快速访问
+                  {t('dashboard.quick_actions_subtitle')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <Button variant="outline" className="h-24 flex flex-col gap-2" onClick={() => navigate('/services')}>
                   <Activity className="h-8 w-8 text-blue-500" />
-                  <span>浏览服务</span>
+                  <span>{t('dashboard.browse_services')}</span>
                 </Button>
                 <Button variant="outline" className="h-24 flex flex-col gap-2" onClick={() => navigate('/settings')}>
                   <Plus className="h-8 w-8 text-green-500" />
-                  <span>充值账户</span>
+                  <span>{t('dashboard.recharge_account')}</span>
                 </Button>
                 <Button variant="outline" className="h-24 flex flex-col gap-2" onClick={() => navigate('/token-dashboard')}>
                   <Clock className="h-8 w-8 text-orange-500" />
-                  <span>Token 分析</span>
+                  <span>{t('dashboard.token_analysis')}</span>
                 </Button>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>最近使用</CardTitle>
+                <CardTitle>{t('dashboard.recent_usage')}</CardTitle>
                 <CardDescription>
-                  您最近使用的服务
+                  {t('dashboard.recent_usage_subtitle')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -283,7 +285,7 @@ export default function Dashboard() {
                 ))}
                 {usageRecords.length === 0 && (
                   <p className="text-center text-gray-500 py-4">
-                    暂无使用记录
+                    {t('dashboard.no_usage_records')}
                   </p>
                 )}
               </CardContent>
@@ -294,9 +296,9 @@ export default function Dashboard() {
         <TabsContent value="usage">
           <Card>
             <CardHeader>
-              <CardTitle>使用记录</CardTitle>
+              <CardTitle>{t('dashboard.usage_records')}</CardTitle>
               <CardDescription>
-                您的所有API使用记录
+                Your complete API usage records
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -305,11 +307,11 @@ export default function Dashboard() {
                   <table className="w-full text-sm text-left">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
-                        <th className="px-6 py-3">服务</th>
-                        <th className="px-6 py-3">会话ID</th>
-                        <th className="px-6 py-3">Token使用量</th>
-                        <th className="px-6 py-3">积分使用</th>
-                        <th className="px-6 py-3">时间</th>
+                        <th className="px-6 py-3">{t('dashboard.service')}</th>
+                        <th className="px-6 py-3">{t('dashboard.session_id')}</th>
+                        <th className="px-6 py-3">{t('dashboard.token_usage')}</th>
+                        <th className="px-6 py-3">{t('dashboard.credits_used')}</th>
+                        <th className="px-6 py-3">{t('dashboard.time')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -327,7 +329,7 @@ export default function Dashboard() {
                             {typeof record.tokensUsed === 'number' ? record.tokensUsed : ''}
                           </td>
                           <td className="px-6 py-4 text-red-600">
-                            -{typeof record.cost === 'number' ? Math.round(record.cost) : '0'} 积分
+                            -{typeof record.cost === 'number' ? Math.round(record.cost) : '0'} {t('dashboard.credits')}
                           </td>
                           <td className="px-6 py-4 text-gray-500">
                             {formatDate(record.timestamp)}
@@ -340,7 +342,7 @@ export default function Dashboard() {
               ) : (
                 <div className="text-center py-8">
                   <p className="text-gray-500">
-                    {searchTerm ? '未找到匹配的使用记录' : '暂无使用记录'}
+                    {searchTerm ? t('dashboard.no_matching_records') : t('dashboard.no_usage_records')}
                   </p>
                 </div>
               )}

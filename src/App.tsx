@@ -10,6 +10,8 @@ import { isDifyEnabled } from './lib/dify-api-client';
 import { environmentValidator } from './lib/environment-validator';
 import { databaseTester } from './lib/database-tester';
 import { User } from './types';
+import { useTranslation } from 'react-i18next';
+import './lib/i18n'; // Initialize i18n
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -38,6 +40,7 @@ const queryClient = new QueryClient();
 const App = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { t } = useTranslation();
 
 
   useEffect(() => {
@@ -114,7 +117,7 @@ const App = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">初始化应用...</p>
+          <p className="text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );

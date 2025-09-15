@@ -27,10 +27,12 @@ import { authService } from '@/lib/auth';
 import { servicesAPI } from '@/lib/services';
 import { User, Service } from '@/types';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export default function DifyChat() {
   const { serviceId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [service, setService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +48,7 @@ export default function DifyChat() {
         if (serviceId) {
           const serviceData = await servicesAPI.getService(serviceId);
           if (!serviceData) {
-            toast.error('服务不存在或已下线');
+            toast.error(t('errors.not_found'));
             navigate('/services');
             return;
           }
@@ -54,7 +56,7 @@ export default function DifyChat() {
         }
       } catch (error) {
         console.error('Failed to load user or service:', error);
-        toast.error('加载失败');
+        toast.error(t('errors.network_error'));
       } finally {
         setIsLoading(false);
       }
@@ -112,24 +114,24 @@ export default function DifyChat() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
-              ProMe AI聊天
+              {t('nav.chat')}
             </CardTitle>
             <CardDescription>
-              直接调用ProMe API的原生聊天界面
+              {t('features.native_api_description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
               <Shield className="h-4 w-4" />
               <AlertDescription>
-                Dify API未配置。请联系管理员设置以下环境变量：
+Dify API not configured. Please contact administrator to set the following environment variables:
                 <ul className="mt-2 list-disc list-inside text-sm">
                   <li>VITE_DIFY_API_URL</li>
                   <li>VITE_DIFY_API_KEY</li>
                   <li>VITE_DIFY_APP_ID (仅聊天应用需要，工作流应用可选)</li>
                 </ul>
                 <div className="mt-2 text-xs text-gray-500">
-                  💡 当前系统支持工作流模式，无需APP_ID即可使用
+                  💡 Current system supports workflow mode, no APP_ID required
                 </div>
               </AlertDescription>
             </Alert>
@@ -152,7 +154,7 @@ export default function DifyChat() {
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                返回服务列表
+                {t('common.back')}
               </Button>
             </div>
           )}
@@ -169,12 +171,12 @@ export default function DifyChat() {
               </div>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              {service ? service.name : 'ProMe AI聊天助手'}
+              {service ? service.name : t('nav.chat')}
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               {service 
                 ? service.description 
-                : '基于ProMe原生API的智能聊天界面，提供100%准确的Token监控和实时计费'
+                : t('features.native_api_description')
               }
             </p>
           </div>
@@ -184,9 +186,9 @@ export default function DifyChat() {
             <Card>
               <CardContent className="p-6 text-center">
                 <Zap className="h-10 w-10 text-yellow-500 mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">原生API集成</h3>
+                <h3 className="font-semibold mb-2">{t('features.native_api_integration')}</h3>
                 <p className="text-sm text-gray-600">
-                  直接调用Dify API，无iframe跨域限制，响应更快速
+                  {t('features.native_api_description')}
                 </p>
               </CardContent>
             </Card>
@@ -194,9 +196,9 @@ export default function DifyChat() {
             <Card>
               <CardContent className="p-6 text-center">
                 <Shield className="h-10 w-10 text-green-500 mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">精确计费</h3>
+                <h3 className="font-semibold mb-2">{t('features.accurate_billing')}</h3>
                 <p className="text-sm text-gray-600">
-                  100%准确的Token使用监控，实时扣费无遗漏
+                  {t('features.accurate_billing_description')}
                 </p>
               </CardContent>
             </Card>
@@ -204,9 +206,9 @@ export default function DifyChat() {
             <Card>
               <CardContent className="p-6 text-center">
                 <TrendingUp className="h-10 w-10 text-blue-500 mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">流式响应</h3>
+                <h3 className="font-semibold mb-2">{t('features.streaming_response')}</h3>
                 <p className="text-sm text-gray-600">
-                  支持实时流式输出，提供更好的用户体验
+                  {t('features.streaming_response_description')}
                 </p>
               </CardContent>
             </Card>
@@ -216,11 +218,11 @@ export default function DifyChat() {
           <Card>
             <CardContent className="p-8 text-center">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-4">请先登录</h3>
+              <h3 className="text-xl font-semibold mb-4">{t('pages.please_login_first')}</h3>
               <p className="text-gray-600 mb-6">
                 {service 
-                  ? `需要登录账户才能使用${service.name}并进行Token计费`
-                  : '需要登录账户才能使用AI聊天功能并进行Token计费'
+                  ? `${t('pages.login_required_description')} ${service.name}`
+                  : t('pages.login_required_description')
                 }
               </p>
               <div className="flex gap-4 justify-center">
@@ -228,13 +230,13 @@ export default function DifyChat() {
                   onClick={() => window.location.href = '/login'}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  立即登录
+                  {t('pages.login_now')}
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={() => window.location.href = '/register'}
                 >
-                  注册账户
+                  {t('pages.create_account')}
                 </Button>
               </div>
             </CardContent>
@@ -242,14 +244,14 @@ export default function DifyChat() {
 
           {/* Benefits */}
           <div className="mt-12">
-            <h2 className="text-2xl font-bold text-center mb-8">为什么选择原生API集成？</h2>
+            <h2 className="text-2xl font-bold text-center mb-8">{t('features.why_native_api')}</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">解决跨域限制</h4>
+                  <h4 className="font-semibold mb-1">{t('features.solve_cors_restrictions')}</h4>
                   <p className="text-sm text-gray-600">
-                    不再依赖iframe，完全避免跨域消息监听失败的问题
+                    {t('features.solve_cors_description')}
                   </p>
                 </div>
               </div>
@@ -257,9 +259,9 @@ export default function DifyChat() {
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">100%准确计费</h4>
+                  <h4 className="font-semibold mb-1">{t('features.hundred_percent_billing')}</h4>
                   <p className="text-sm text-gray-600">
-                    直接获取API响应中的Token使用数据，计费精确到每个Token
+                    {t('features.hundred_percent_description')}
                   </p>
                 </div>
               </div>
@@ -267,9 +269,9 @@ export default function DifyChat() {
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">更好的用户体验</h4>
+                  <h4 className="font-semibold mb-1">{t('features.better_user_experience')}</h4>
                   <p className="text-sm text-gray-600">
-                    支持流式响应、消息重试、对话管理等高级功能
+                    {t('features.better_ux_description')}
                   </p>
                 </div>
               </div>
@@ -277,9 +279,9 @@ export default function DifyChat() {
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">实时余额监控</h4>
+                  <h4 className="font-semibold mb-1">{t('features.real_time_balance_monitoring')}</h4>
                   <p className="text-sm text-gray-600">
-                    每次对话后立即更新账户余额，防止超额使用
+                    {t('features.balance_monitoring_description')}
                   </p>
                 </div>
               </div>
@@ -320,16 +322,16 @@ export default function DifyChat() {
                 ) : (
                   <>
                     <MessageSquare className="h-6 w-6 text-blue-600" />
-                    ProMe AI聊天
+                    {t('nav.chat')}
                   </>
                 )}
                 <Badge variant="secondary" className="ml-2">
                   <Zap className="h-3 w-3 mr-1" />
-                  原生API
+                  {t('features.native_api_integration')}
                 </Badge>
               </h1>
               <p className="text-gray-600 mt-1">
-                欢迎 {user.name}，当前余额: <span className="font-semibold text-green-600">{user.balance.toLocaleString()}</span> 积分
+                Welcome {user.name}, {t('billing.remaining_balance', { balance: user.balance.toLocaleString() })}
                 {service && (
                   <span className="ml-2 text-sm">
                     • {service.description}
@@ -341,7 +343,7 @@ export default function DifyChat() {
             <div className="flex items-center gap-4">
               <Badge variant="outline" className="flex items-center gap-1">
                 <DollarSign className="h-3 w-3" />
-                实时计费
+                {t('billing.real_time_billing')}
               </Badge>
               {user.balance < 1000 && (
                 <Button 
@@ -350,7 +352,7 @@ export default function DifyChat() {
                   onClick={() => window.location.href = '/pricing'}
                   className="text-orange-600 border-orange-200 hover:bg-orange-50"
                 >
-                  余额不足，去充值
+                  {t('billing.insufficient_balance')}
                 </Button>
               )}
             </div>
@@ -369,8 +371,8 @@ export default function DifyChat() {
             enableRetry={true}
             user={user} // 🔥 传递认证用户信息
             placeholder={service 
-              ? `输入您的${service.name}需求...` 
-              : "输入您的消息或工作流指令..."
+              ? `${t('chat.input_question')} ${service.name}...` 
+              : t('chat.placeholder')
             }
             welcomeMessage={service 
               ? `您好！我是${service.name}。${service.description}有什么可以帮助您的吗？`

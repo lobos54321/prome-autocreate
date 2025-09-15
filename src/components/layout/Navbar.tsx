@@ -15,12 +15,14 @@ import { authService } from '@/lib/auth';
 import { isAdmin } from '@/lib/admin';
 import { User as UserType } from '@/types';
 import PointsDisplay from '@/components/ui/PointsDisplay';
-import { DifyMonitorStatus } from '@/components/DifyMonitorStatus';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<UserType | null>(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     // 初始化时获取当前用户状态
@@ -86,25 +88,23 @@ export function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/pricing" className="text-gray-600 hover:text-gray-900">价格</Link>
+          <Link to="/pricing" className="text-gray-600 hover:text-gray-900">{t('nav.pricing')}</Link>
           {user && (
             <>
-              <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">控制台</Link>
+              <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">{t('nav.dashboard')}</Link>
               <Link to="/chat/dify" className="text-gray-600 hover:text-gray-900">Prome AI</Link>
             </>
           )}
           {user && isAdmin(user) && (
-            <Link to="/admin" className="text-blue-600 hover:text-blue-900 font-medium">管理后台</Link>
+            <Link to="/admin" className="text-blue-600 hover:text-blue-900 font-medium">{t('nav.admin')}</Link>
           )}
         </nav>
 
         {/* User Menu or Auth Buttons */}
         <div className="hidden md:flex items-center space-x-4">
+          <LanguageSwitcher />
           {user && (
-            <>
-              <PointsDisplay className="border-0 shadow-none bg-gray-50" showDetails={false} />
-              <DifyMonitorStatus />
-            </>
+            <PointsDisplay className="border-0 shadow-none bg-gray-50" showDetails={false} />
           )}
           {user ? (
             <DropdownMenu>
@@ -117,11 +117,11 @@ export function Navbar() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>我的账户</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('auth.profile')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                   <User className="mr-2 h-4 w-4" />
-                  控制台
+                  {t('nav.dashboard')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/chat/dify')}>
                   <MessageSquare className="mr-2 h-4 w-4" />
@@ -129,35 +129,35 @@ export function Navbar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/token-dashboard')}>
                   <Activity className="mr-2 h-4 w-4" />
-                  用量统计
+                  {t('billing.token_usage')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
-                  设置
+                  {t('nav.settings')}
                 </DropdownMenuItem>
                 {isAdmin(user) && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate('/admin')}>
                       <Shield className="mr-2 h-4 w-4" />
-                      管理后台
+                      {t('nav.admin')}
                     </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  退出登录
+                  {t('nav.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <div className="flex space-x-2">
               <Button variant="ghost" onClick={() => navigate('/login')}>
-                登录
+                {t('nav.login')}
               </Button>
               <Button onClick={() => navigate('/register')}>
-                注册
+                {t('nav.register')}
               </Button>
             </div>
           )}
@@ -183,7 +183,7 @@ export function Navbar() {
               className="block py-2 text-gray-600 hover:text-gray-900"
               onClick={() => setIsOpen(false)}
             >
-              价格
+              {t('nav.pricing')}
             </Link>
             {user ? (
               <>
@@ -192,7 +192,7 @@ export function Navbar() {
                   className="block py-2 text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  控制台
+                  {t('nav.dashboard')}
                 </Link>
                 <Link 
                   to="/chat/dify" 
@@ -206,14 +206,14 @@ export function Navbar() {
                   className="block py-2 text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  用量统计
+                  {t('billing.token_usage')}
                 </Link>
                 <Link 
                   to="/settings" 
                   className="block py-2 text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  设置
+                  {t('nav.settings')}
                 </Link>
                 {isAdmin(user) && (
                   <Link 
@@ -221,7 +221,7 @@ export function Navbar() {
                     className="block py-2 text-blue-600 hover:text-blue-900 font-medium"
                     onClick={() => setIsOpen(false)}
                   >
-                    管理后台
+                    {t('nav.admin')}
                   </Link>
                 )}
                 <Button 
@@ -233,7 +233,7 @@ export function Navbar() {
                   }}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  退出登录
+                  {t('nav.logout')}
                 </Button>
               </>
             ) : (
@@ -246,7 +246,7 @@ export function Navbar() {
                     navigate('/login');
                   }}
                 >
-                  登录
+                  {t('nav.login')}
                 </Button>
                 <Button 
                   className="w-full"
@@ -255,7 +255,7 @@ export function Navbar() {
                     navigate('/register');
                   }}
                 >
-                  注册
+                  {t('nav.register')}
                 </Button>
               </div>
             )}

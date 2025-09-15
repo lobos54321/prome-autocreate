@@ -6,6 +6,7 @@ import { Coins, DollarSign, TrendingDown, TrendingUp, AlertCircle, RefreshCw } f
 import { authService } from '@/lib/auth';
 import { db } from '@/lib/supabase';
 import { User } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 interface PointsDisplayProps {
   className?: string;
@@ -13,6 +14,7 @@ interface PointsDisplayProps {
 }
 
 export default function PointsDisplay({ className = '', showDetails = true }: PointsDisplayProps) {
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number>(10000); // Default rate
   const [isLoadingRate, setIsLoadingRate] = useState(true);
@@ -219,9 +221,9 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
                   <span className="text-lg font-semibold">
                     {pointsValue.toLocaleString()}
                   </span>
-                  <span className="text-sm text-gray-500">积分</span>
+                  <span className="text-sm text-gray-500">{t('billing.points')}</span>
                   {isPotentialCacheIssue && (
-                    <AlertCircle className="h-4 w-4 text-amber-500" title="余额可能需要刷新" />
+                    <AlertCircle className="h-4 w-4 text-amber-500" title={t('dashboard.refresh_balance')} />
                   )}
                   {showDetails && (
                     <Button
@@ -230,7 +232,7 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
                       className="h-6 w-6 p-0"
                       onClick={refreshBalanceFromDatabase}
                       disabled={isRefreshingBalance}
-                      title="刷新余额"
+                      title={t('dashboard.refresh_balance')}
                     >
                       <RefreshCw className={`h-3 w-3 ${isRefreshingBalance ? 'animate-spin' : ''}`} />
                     </Button>
@@ -240,7 +242,7 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
                   <div className="flex items-center space-x-1 text-sm text-gray-500">
                     <DollarSign className="h-3 w-3" />
                     <span>
-                      {isLoadingRate ? '加载中...' : `≈ $${usdEquivalent.toFixed(4)}`}
+                      {isLoadingRate ? t('common.loading') : `≈ $${usdEquivalent.toFixed(4)}`}
                     </span>
                   </div>
                 )}
@@ -267,7 +269,7 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
         
         {showDetails && pointsHistory.length > 0 && (
           <div className="mt-3 pt-3 border-t">
-            <div className="text-xs text-gray-500 mb-2">最近使用记录</div>
+            <div className="text-xs text-gray-500 mb-2">{t('token_dashboard.recent_usage_records')}</div>
             <div className="space-y-1">
               {pointsHistory.slice(0, 3).map((record, index) => (
                 <div key={index} className="flex justify-between items-center text-xs">
@@ -288,7 +290,7 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
             <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
               <div className="flex items-center space-x-1">
                 <AlertCircle className="h-3 w-3" />
-                <span>余额可能需要刷新，点击刷新按钮获取最新数据</span>
+                <span>{t('dashboard.refresh_balance')} - {t('common.loading')}</span>
               </div>
             </div>
           </div>

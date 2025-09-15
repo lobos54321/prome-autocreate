@@ -9,10 +9,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CreditCard, ArrowRight } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { loadStripe } from '@stripe/stripe-js';
+import { useTranslation } from 'react-i18next';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 export default function Settings() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const user = authService.getCurrentUserSync(); // Use synchronous method
   const [activeTab, setActiveTab] = useState('profile');
