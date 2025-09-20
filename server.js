@@ -21,10 +21,82 @@ app.use(express.json());
 
 // 🔍 DEBUG: Log all incoming requests to identify routing
 app.use((req, res, next) => {
-  if (req.path.includes('/api/dify')) {
+  if (req.path.includes('/api/dify') || req.path.includes('/api/video-result')) {
     console.log(`🔍 INCOMING REQUEST: ${req.method} ${req.path}`);
   }
   next();
+});
+
+// 内存存储视频结果（生产环境建议使用Redis）
+const videoResults = new Map();
+
+// 视频结果接收端点 - 供N8n工作流3回调使用
+app.post('/api/video-result', (req, res) => {
+  console.log('📥 N8n工作流3回调 - 视频结果:', req.body);
+  
+  const { sessionId, videoUrl, status, timestamp } = req.body;
+  
+  // 验证必填字段
+  if (!sessionId || !videoUrl) {
+    console.error('❌ 缺少必填字段:', req.body);
+    return res.status(400).json({ 
+      error: 'Missing required fields: sessionId, videoUrl' 
+    });
+  }
+
+  // 存储视频结果
+  const result = {
+    sessionId,
+    videoUrl,
+    status,
+    timestamp: timestamp || new Date().toISOString(),
+    receivedAt: Date.now()
+  };
+  
+  videoResults.set(sessionId, result);
+  
+  // 5分钟后自动清理
+  setTimeout(() => {
+    if (videoResults.has(sessionId)) {
+      console.log('🧹 清理过期的视频结果:', sessionId);
+      videoResults.delete(sessionId);
+    }
+  }, 5 * 60 * 1000);
+  
+  console.log('✅ 视频结果已存储:', {
+    sessionId,
+    videoUrl: videoUrl.substring(0, 50) + '...',
+    status
+  });
+  
+  res.json({ 
+    success: true, 
+    message: 'Video result received and stored successfully',
+    sessionId: sessionId
+  });
+});
+
+// 前端轮询检查端点
+app.get('/api/video-result/check/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  const result = videoResults.get(sessionId);
+  
+  if (result) {
+    console.log('✅ 返回视频结果给前端:', sessionId);
+    // 返回结果后立即清理
+    videoResults.delete(sessionId);
+    
+    res.json({
+      success: true,
+      result: result
+    });
+  } else {
+    res.json({
+      success: true,
+      result: null
+    });
+  }
 });
 
 // Configuration from environment variables

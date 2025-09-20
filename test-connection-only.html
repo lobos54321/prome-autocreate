@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>N8n连接测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .loading { background-color: #fff3cd; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>🔍 N8n连接诊断</h1>
+    
+    <button onclick="testConnection()">测试基础连接</button>
+    <button onclick="testWithTimeout()">测试带超时</button>
+    <button onclick="clearResults()">清除结果</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const WEBHOOK_URL = 'https://n8n-worker-k4m9.zeabur.app/webhook/9d5986f5-fcba-42bf-b3d7-5fd94660943a/chat';
+        
+        function addResult(type, message) {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()}: ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function testConnection() {
+            addResult('loading', '🔄 开始测试基础连接...');
+            
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: "sendMessage",
+                        sessionId: `test_${Date.now()}`,
+                        chatInput: "hello"
+                    })
+                });
+                
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                addResult('success', `✅ 收到响应! 状态: ${response.status}, 耗时: ${duration}ms`);
+                
+                const responseText = await response.text();
+                addResult('success', `📄 响应内容: ${responseText.substring(0, 100)}...`);
+                
+            } catch (error) {
+                addResult('error', `❌ 连接失败: ${error.message}`);
+            }
+        }
+
+        async function testWithTimeout() {
+            addResult('loading', '🔄 开始测试带5秒超时...');
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    addResult('error', '⏰ 5秒超时!');
+                    controller.abort();
+                }, 5000);
+                
+                const startTime = Date.now();
+                
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: "sendMessage",
+                        sessionId: `timeout_test_${Date.now()}`,
+                        chatInput: "timeout test"
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                addResult('success', `✅ 在超时前收到响应! 状态: ${response.status}, 耗时: ${duration}ms`);
+                
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    addResult('error', '⏰ 请求被超时中断');
+                } else {
+                    addResult('error', `❌ 请求失败: ${error.message}`);
+                }
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

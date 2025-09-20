@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle, Zap, Shield, Clock, Star, Users, Award } from 'lucide-react';
+import { ArrowRight, CheckCircle, Zap, Shield, Clock, Star, Users, Award, PenTool, Video } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { User } from '@/types';
 import { useTranslation } from 'react-i18next';
@@ -64,48 +64,68 @@ export default function Home() {
             {t('home.platform_subtitle')}
           </p>
           
-          {/* 动态按钮区域 */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            {user ? (
-              <>
+          {/* 主要服务按钮 */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
+            {/* 深度文案创作 */}
+            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-blue-200 group">
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-200 transition-colors">
+                  <PenTool className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">{t('home.deep_copywriting')}</h3>
+                <p className="text-gray-600 mb-6">{t('home.deep_copywriting_desc')}</p>
                 <Button 
                   size="lg" 
-                  onClick={() => navigate('/services')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
+                  onClick={() => user ? navigate('/chat/dify') : navigate('/login')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {t('home.browse_services')}
+                  {user ? t('home.start_creating') : t('home.login_to_use')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
+              </div>
+            </div>
+
+            {/* 自动化视频创作 */}
+            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-purple-200 group">
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-purple-200 transition-colors">
+                  <Video className="h-8 w-8 text-purple-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">{t('home.automated_video')}</h3>
+                <p className="text-gray-600 mb-6">{t('home.automated_video_desc')}</p>
                 <Button 
                   size="lg" 
-                  variant="outline"
-                  onClick={() => navigate('/dashboard')}
-                  className="px-8 py-3"
+                  onClick={() => user ? navigate('/chat/n8n') : navigate('/login')}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                  {t('home.my_dashboard')}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button 
-                  size="lg" 
-                  onClick={() => navigate('/register')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
-                >
-                  {t('home.register_now')}
+                  {user ? t('home.start_creating') : t('home.login_to_use')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={() => navigate('/login')}
-                  className="px-8 py-3"
-                >
-                  {t('home.user_login')}
-                </Button>
-              </>
-            )}
+              </div>
+            </div>
           </div>
+
+          {/* 登录/注册按钮区域 */}
+          {!user && (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+              <Button 
+                size="lg" 
+                onClick={() => navigate('/register')}
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3"
+              >
+                {t('home.register_now')}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                onClick={() => navigate('/login')}
+                className="px-8 py-3"
+              >
+                {t('home.user_login')}
+              </Button>
+            </div>
+          )}
           
           {/* 用户状态显示 */}
           {user && (

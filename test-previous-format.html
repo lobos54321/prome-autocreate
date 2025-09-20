@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试之前的格式</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        button { background-color: #8B5CF6; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .result { margin: 15px 0; padding: 15px; border-radius: 4px; border: 1px solid #ddd; }
+        .success { background-color: #D1FAE5; color: #065F46; }
+        .error { background-color: #FEE2E2; color: #991B1B; }
+        .debug-info { background-color: #1F2937; color: #F9FAFB; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 测试之前有效的格式</h1>
+        <p>使用之前成功的消息格式和字段名进行测试</p>
+        
+        <button onclick="testPreviousSuccessFormat()">🎯 测试之前成功的格式</button>
+        <button onclick="testOldFieldNames()">📝 测试旧字段名 (videoUrl)</button>
+        <button onclick="testMinimalPayload()">⚡ 测试最简载荷</button>
+        <button onclick="clearResults()">🧹 清除</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://n8n-worker-k4m9.zeabur.app/webhook/9d5986f5-fcba-42bf-b3d7-5fd94660943a/chat';
+
+        function addResult(type, title, content) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<h4>${title}</h4><div>${content}</div>`;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        function addDebug(title, data) {
+            const debugDiv = document.createElement('div');
+            debugDiv.innerHTML = `<strong>${title}:</strong>`;
+            const codeDiv = document.createElement('div');
+            codeDiv.className = 'debug-info';
+            codeDiv.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            debugDiv.appendChild(codeDiv);
+            document.getElementById('results').appendChild(debugDiv);
+        }
+
+        async function sendTestRequest(payload, testName) {
+            try {
+                addResult('processing', testName, '正在发送请求...');
+                addDebug('发送载荷', payload);
+                
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                addDebug('HTTP状态', `${response.status} ${response.statusText}`);
+
+                if (response.ok) {
+                    const responseData = await response.text();
+                    addDebug('响应数据', responseData);
+                    
+                    addResult('success', `✅ ${testName} - 成功!`, 
+                        `状态: ${response.status}<br>响应: ${responseData.substring(0, 100)}...`
+                    );
+                } else {
+                    const errorData = await response.text();
+                    addDebug('错误响应', errorData);
+                    addResult('error', `❌ ${testName} - 失败`, 
+                        `状态: ${response.status}<br>错误: ${errorData}`
+                    );
+                }
+            } catch (error) {
+                addResult('error', `❌ ${testName} - 网络错误`, error.message);
+            }
+        }
+
+        // 测试1: 使用之前成功的完整格式
+        async function testPreviousSuccessFormat() {
+            const payload = {
+                action: "sendMessage",
+                sessionId: "video_session_1758177131199_l6s5tg9nm", // 使用之前的sessionId
+                chatInput: `视频创作需求：
+🎬 视频时长：24秒
+📝 产品描述：今天我们艺站lobos老师带我们在公园上了一节户外写生课，阳光特别好，大家都很兴奋。
+🖼️ 产品图片：https://youke1.picui.cn/s1/2025/09/18/68cb9660072c4.jpg
+👤 人物性别：female
+
+请根据以上信息创建视频内容。`
+            };
+            await sendTestRequest(payload, '之前成功的格式');
+        }
+
+        // 测试2: 测试是否字段名的问题
+        async function testOldFieldNames() {
+            const payload = {
+                action: "sendMessage",
+                sessionId: `test_oldfield_${Date.now()}`,
+                chatInput: "请生成一个测试视频，返回videoUrl字段"
+            };
+            await sendTestRequest(payload, '旧字段名测试');
+        }
+
+        // 测试3: 最简单的载荷
+        async function testMinimalPayload() {
+            const payload = {
+                chatInput: "hello"
+            };
+            await sendTestRequest(payload, '最简载荷');
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        window.onload = function() {
+            addResult('success', '🔧 测试说明', 
+                `这个页面会测试之前成功的格式<br>` +
+                `如果这些也失败，说明是N8n工作流本身的问题<br>` +
+                `请检查N8n执行日志获取详细错误信息`
+            );
+        };
+    </script>
+</body>
+</html>

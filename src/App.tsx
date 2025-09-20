@@ -22,6 +22,9 @@ import Pricing from './pages/Pricing';
 import Purchase from './pages/Purchase';
 import Settings from './pages/Settings';
 import AIContentGeneration from './pages/AIContentGeneration';
+import N8nChat from './pages/N8nChat';
+import N8nTest from './pages/N8nTest';
+import N8nDiagnostic from './pages/N8nDiagnostic';
 
 import DifyChat from './pages/DifyChat';
 import DifyChatTest from './pages/DifyChatTest';
@@ -140,6 +143,9 @@ const App = () => {
               <Route path="/token-dashboard" element={<TokenDashboard />} />
               <Route path="/chat/:serviceId" element={<DifyChat />} />
               <Route path="/chat/dify" element={<DifyChat />} />
+              <Route path="/chat/n8n" element={<N8nChat />} />
+              <Route path="/n8n-test" element={<N8nTest />} />
+              <Route path="/n8n-diagnostic" element={<N8nDiagnostic />} />
               <Route path="/ai-content/:serviceId" element={<AIContentGeneration />} />
               <Route path="/admin" element={<Admin />} />
 

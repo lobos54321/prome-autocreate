@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N8n监听器 - 等待工作流完成</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-section {
+            background-color: #F3F4F6;
+            border: 1px solid #D1D5DB;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .timeline {
+            border-left: 3px solid #8B5CF6;
+            padding-left: 20px;
+            margin: 20px 0;
+        }
+        .timeline-item {
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background-color: #8B5CF6;
+            border-radius: 50%;
+            position: absolute;
+            left: -26px;
+            top: 5px;
+        }
+        .timeline-item.completed::before {
+            background-color: #10B981;
+        }
+        .timeline-item.current::before {
+            background-color: #F59E0B;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        button {
+            background-color: #8B5CF6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #7C3AED;
+        }
+        button:disabled {
+            background-color: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .success {
+            background-color: #D1FAE5;
+            color: #065F46;
+            border-color: #A7F3D0;
+        }
+        .error {
+            background-color: #FEE2E2;
+            color: #991B1B;
+            border-color: #FECACA;
+        }
+        .processing {
+            background-color: #DBEAFE;
+            color: #1E3A8A;
+            border-color: #93C5FD;
+        }
+        .debug-info {
+            background-color: #1F2937;
+            color: #F9FAFB;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .video-result {
+            background-color: #D1FAE5;
+            color: #065F46;
+            border: 2px solid #10B981;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .video-link {
+            display: inline-block;
+            background-color: #059669;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px;
+            font-weight: bold;
+        }
+        .video-link:hover {
+            background-color: #047857;
+        }
+        .timer {
+            font-size: 18px;
+            font-weight: bold;
+            color: #8B5CF6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 N8n工作流监听器</h1>
+        <p>这个页面模拟正确的N8n Chat Trigger使用方式：发送请求后等待工作流自然完成</p>
+        
+        <div class="status-section">
+            <h3>📊 当前状态</h3>
+            <div class="timer" id="timer">等待开始...</div>
+            <div id="currentStatus">准备发送视频创建请求</div>
+        </div>
+
+        <div class="timeline">
+            <div class="timeline-item" id="step1">
+                <strong>步骤1:</strong> 发送视频创建请求到N8n
+            </div>
+            <div class="timeline-item" id="step2">
+                <strong>步骤2:</strong> 接收taskId确认（AI Agent开始处理）
+            </div>
+            <div class="timeline-item" id="step3">
+                <strong>步骤3:</strong> 等待N8n工作流在后台完成（2-5分钟）
+            </div>
+            <div class="timeline-item" id="step4">
+                <strong>步骤4:</strong> 接收包含finalvideoURL的最终响应
+            </div>
+        </div>
+
+        <div class="status-section">
+            <button onclick="startVideoCreation()" id="startBtn">🚀 开始视频创作流程</button>
+            <button onclick="stopListening()" id="stopBtn" disabled>⏹️ 停止监听</button>
+            <button onclick="clearResults()" id="clearBtn">🧹 清除结果</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://n8n-worker-k4m9.zeabur.app/webhook/9d5986f5-fcba-42bf-b3d7-5fd94660943a/chat';
+        let sessionId = `video_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        let startTime = null;
+        let timerInterval = null;
+        let currentTaskId = null;
+        let isListening = false;
+
+        function updateTimer() {
+            if (!startTime) return;
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('timer').textContent = 
+                `⏱️ 已等待: ${minutes}分${seconds.toString().padStart(2, '0')}秒`;
+        }
+
+        function updateStatus(message) {
+            document.getElementById('currentStatus').textContent = message;
+        }
+
+        function markStepCompleted(stepId) {
+            document.getElementById(stepId).classList.add('completed');
+        }
+
+        function markStepCurrent(stepId) {
+            // 清除之前的current状态
+            document.querySelectorAll('.timeline-item').forEach(item => {
+                item.classList.remove('current');
+            });
+            document.getElementById(stepId).classList.add('current');
+        }
+
+        function addResult(type, title, content) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `
+                <h4>${title}</h4>
+                <div>${content}</div>
+            `;
+            resultsDiv.appendChild(resultDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function addDebugInfo(title, data) {
+            const debugDiv = document.createElement('div');
+            debugDiv.innerHTML = `<strong>${title}:</strong>`;
+            const codeDiv = document.createElement('div');
+            codeDiv.className = 'debug-info';
+            codeDiv.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            debugDiv.appendChild(codeDiv);
+            document.getElementById('results').appendChild(debugDiv);
+        }
+
+        async function startVideoCreation() {
+            console.log('🚀 开始N8n视频创作流程');
+            
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+            isListening = true;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            markStepCurrent('step1');
+            updateStatus('正在发送视频创建请求...');
+
+            const messageContent = `视频创作需求：
+🎬 视频时长：24秒
+📝 产品描述：今天我们艺站lobos老师带我们在公园上了一节户外写生课，阳光特别好，大家都很兴奋。老师让我们画身边的植物，我第一次发现原来光影变化这么有趣。刚开始我还担心我是零基础，但是lobos老师的色彩教学真的很用心，我能感受平时看不到的色彩，而且感觉时间过得很快，整个过程真的很放松，感觉自己像个真正的艺术家。
+🖼️ 产品图片：https://youke1.picui.cn/s1/2025/09/18/68cb9660072c4.jpg
+👤 人物性别：female
+
+请根据以上信息创建视频内容。`;
+
+            const payload = {
+                action: "sendMessage",
+                sessionId: sessionId,
+                chatInput: messageContent
+            };
+
+            try {
+                addResult('processing', '📤 发送初始请求', '正在发送视频创建请求到N8n...');
+                addDebugInfo('发送载荷', payload);
+                
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                addDebugInfo('HTTP状态', `${response.status} ${response.statusText}`);
+
+                if (response.ok) {
+                    const responseData = await response.text();
+                    addDebugInfo('初始响应', responseData);
+
+                    try {
+                        const parsedResponse = JSON.parse(responseData);
+
+                        if (parsedResponse.code === 200 && parsedResponse.data && parsedResponse.data.taskId) {
+                            // 步骤1完成，步骤2完成
+                            markStepCompleted('step1');
+                            markStepCompleted('step2');
+                            markStepCurrent('step3');
+                            
+                            currentTaskId = parsedResponse.data.taskId;
+                            updateStatus(`AI Agent已开始处理，TaskID: ${currentTaskId}`);
+                            
+                            addResult('success', '✅ 收到TaskID', 
+                                `🎯 TaskID: ${currentTaskId}<br>` +
+                                `✅ AI Agent已开始在后台处理<br>` +
+                                `⏳ 现在等待工作流自然完成（预计2-5分钟）<br>` +
+                                `📡 Chat Trigger会自动发送最终结果`
+                            );
+
+                            // 开始等待最终结果（通过新的请求监听）
+                            waitForFinalResult();
+                            
+                        } else if (parsedResponse.finalvideoURL || parsedResponse.finalVideoURL) {
+                            // 直接收到最终结果！
+                            handleFinalVideoResult(parsedResponse);
+                        } else {
+                            addResult('error', '❌ 意外的响应格式', 
+                                `响应: ${responseData}<br>` +
+                                `期望: taskId 或 finalvideoURL`
+                            );
+                        }
+                    } catch (e) {
+                        addResult('error', '❌ JSON解析失败', `响应不是JSON: ${responseData}`);
+                    }
+                } else {
+                    const errorText = await response.text();
+                    addResult('error', '❌ HTTP错误', `状态: ${response.status}<br>错误: ${errorText}`);
+                }
+            } catch (error) {
+                addResult('error', '❌ 请求失败', error.message);
+                console.error('请求失败:', error);
+            }
+        }
+
+        async function waitForFinalResult() {
+            if (!isListening) return;
+
+            console.log('⏳ 等待工作流完成，开始监听最终结果...');
+            updateStatus('等待N8n工作流完成并返回最终结果...');
+
+            // 每30秒发送一个简单的监听请求
+            const checkInterval = setInterval(async () => {
+                if (!isListening) {
+                    clearInterval(checkInterval);
+                    return;
+                }
+
+                try {
+                    console.log('🔍 发送监听请求...');
+                    
+                    // 使用不同的sessionId避免冲突
+                    const listenSessionId = `listen_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+                    
+                    const listenPayload = {
+                        action: "sendMessage",
+                        sessionId: listenSessionId,
+                        chatInput: "状态检查"
+                    };
+
+                    const response = await fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(listenPayload)
+                    });
+
+                    if (response.ok) {
+                        const responseData = await response.text();
+                        console.log('📡 监听响应:', responseData);
+                        
+                        try {
+                            const parsedResponse = JSON.parse(responseData);
+                            
+                            // 检查是否包含最终视频结果
+                            const videoUrl = parsedResponse.finalvideoURL || 
+                                            parsedResponse.finalVideoURL ||
+                                            parsedResponse.finalVideoUrl ||
+                                            parsedResponse.videoUrl;
+                            
+                            if (videoUrl) {
+                                console.log('🎉 监听到最终结果！');
+                                clearInterval(checkInterval);
+                                handleFinalVideoResult(parsedResponse);
+                            }
+                        } catch (e) {
+                            // 非JSON响应，继续等待
+                        }
+                    }
+                } catch (error) {
+                    console.log('🔍 监听请求失败:', error.message);
+                }
+            }, 30000); // 每30秒检查一次
+
+            // 最大等待10分钟
+            setTimeout(() => {
+                if (isListening) {
+                    clearInterval(checkInterval);
+                    addResult('error', '⏰ 等待超时', 
+                        '等待时间超过10分钟，请检查N8n工作流状态。<br>' +
+                        '工作流可能仍在运行，请手动检查N8n界面。'
+                    );
+                    stopListening();
+                }
+            }, 600000); // 10分钟
+        }
+
+        function handleFinalVideoResult(response) {
+            markStepCompleted('step3');
+            markStepCompleted('step4');
+            
+            const videoUrl = response.finalvideoURL || 
+                            response.finalVideoURL ||
+                            response.finalVideoUrl ||
+                            response.videoUrl;
+            
+            updateStatus('🎉 视频生成完成！');
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            addResult('success', '🎉 视频生成完成！', 
+                `<div class="video-result">
+                    <h3>✅ 您的视频已准备就绪！</h3>
+                    <p>TaskID: ${currentTaskId || '未知'}</p>
+                    <a href="${videoUrl}" target="_blank" class="video-link">📹 下载视频</a>
+                    <a href="${videoUrl}" target="_blank" class="video-link">🎬 在线预览</a>
+                    <p style="margin-top: 15px; font-size: 12px; color: #059669;">
+                        <strong>视频地址:</strong> ${videoUrl}
+                    </p>
+                </div>`
+            );
+            
+            addDebugInfo('最终响应', response);
+            stopListening();
+        }
+
+        function stopListening() {
+            isListening = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            updateStatus('已停止监听');
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.querySelectorAll('.timeline-item').forEach(item => {
+                item.classList.remove('completed', 'current');
+            });
+            
+            startTime = null;
+            currentTaskId = null;
+            document.getElementById('timer').textContent = '等待开始...';
+            updateStatus('准备发送视频创建请求');
+            stopListening();
+        }
+
+        // 页面加载时显示配置
+        window.onload = function() {
+            addResult('success', '🔧 监听器配置', 
+                `📡 Webhook: ${WEBHOOK_URL}<br>` +
+                `🔑 SessionID: ${sessionId}<br>` +
+                `🎯 目标字段: finalvideoURL<br>` +
+                `⏰ 监听间隔: 30秒<br>` +
+                `⏳ 最大等待: 10分钟`
+            );
+        };
+    </script>
+</body>
+</html>

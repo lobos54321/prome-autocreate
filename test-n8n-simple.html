@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N8n简单连接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            background-color: #F3F4F6;
+            border: 1px solid #D1D5DB;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #8B5CF6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #7C3AED;
+        }
+        button:disabled {
+            background-color: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .success {
+            background-color: #D1FAE5;
+            color: #065F46;
+            border-color: #A7F3D0;
+        }
+        .error {
+            background-color: #FEE2E2;
+            color: #991B1B;
+            border-color: #FECACA;
+        }
+        .debug-info {
+            background-color: #1F2937;
+            color: #F9FAFB;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 N8n基础连接测试</h1>
+        <p>这个页面用于测试N8n工作流的基础连接，排除复杂逻辑的干扰</p>
+        
+        <div class="test-section">
+            <h3>📋 测试消息</h3>
+            <input type="text" id="testMessage" value="hello" placeholder="输入测试消息">
+            <button onclick="testBasicConnection()">🔗 测试基础连接</button>
+            <button onclick="testSimpleMessage()">💬 测试简单消息</button>
+            <button onclick="testVideoKeywords()">🎬 测试视频关键词</button>
+            <button onclick="clearResults()">🧹 清除结果</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://n8n-worker-k4m9.zeabur.app/webhook/9d5986f5-fcba-42bf-b3d7-5fd94660943a/chat';
+
+        function addResult(type, title, content) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `
+                <h4>${title}</h4>
+                <div>${content}</div>
+            `;
+            resultsDiv.appendChild(resultDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function addDebugInfo(title, data) {
+            const debugDiv = document.createElement('div');
+            debugDiv.innerHTML = `<strong>${title}:</strong>`;
+            const codeDiv = document.createElement('div');
+            codeDiv.className = 'debug-info';
+            codeDiv.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            debugDiv.appendChild(codeDiv);
+            document.getElementById('results').appendChild(debugDiv);
+        }
+
+        async function sendTestMessage(message, description) {
+            console.log(`🧪 测试: ${description}`);
+            
+            const sessionId = `test_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            const payload = {
+                action: "sendMessage",
+                sessionId: sessionId,
+                chatInput: message
+            };
+
+            try {
+                addResult('processing', `🧪 ${description}`, `正在发送: ${message}`);
+                addDebugInfo('发送载荷', payload);
+                
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                addDebugInfo('HTTP状态', `${response.status} ${response.statusText}`);
+                addDebugInfo('响应Headers', Object.fromEntries(response.headers.entries()));
+
+                if (response.ok) {
+                    const responseData = await response.text();
+                    addDebugInfo('原始响应', responseData);
+
+                    addResult('success', `✅ ${description} - 成功`, 
+                        `状态码: ${response.status}<br>` +
+                        `响应长度: ${responseData.length}<br>` +
+                        `响应内容: ${responseData.substring(0, 200)}${responseData.length > 200 ? '...' : ''}`
+                    );
+
+                    // 尝试解析JSON
+                    try {
+                        const parsed = JSON.parse(responseData);
+                        addDebugInfo('解析的JSON', parsed);
+                    } catch (e) {
+                        console.log('响应不是JSON格式');
+                    }
+
+                } else {
+                    const errorText = await response.text();
+                    addDebugInfo('错误响应', errorText);
+                    
+                    addResult('error', `❌ ${description} - 失败`, 
+                        `状态码: ${response.status}<br>` +
+                        `错误信息: ${errorText}`
+                    );
+                }
+            } catch (error) {
+                addResult('error', `❌ ${description} - 网络错误`, error.message);
+                console.error('请求失败:', error);
+            }
+        }
+
+        async function testBasicConnection() {
+            const message = document.getElementById('testMessage').value || 'hello';
+            await sendTestMessage(message, '基础连接测试');
+        }
+
+        async function testSimpleMessage() {
+            await sendTestMessage('请回复一个简单的消息', '简单消息测试');
+        }
+
+        async function testVideoKeywords() {
+            await sendTestMessage('视频创作', '视频关键词测试');
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // 页面加载时显示配置
+        window.onload = function() {
+            addResult('success', '🔧 测试配置', 
+                `📡 Webhook URL: ${WEBHOOK_URL}<br>` +
+                `🎯 目标: 测试N8n工作流基础连接<br>` +
+                `📋 策略: 使用简单消息排除复杂逻辑错误`
+            );
+        };
+    </script>
+</body>
+</html>

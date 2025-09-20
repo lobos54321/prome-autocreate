@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N8n表单测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #8B5CF6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #7C3AED;
+        }
+        button:disabled {
+            background-color: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #A7F3D0;
+        }
+        .error {
+            background-color: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #FECACA;
+        }
+        .processing {
+            background-color: #DBEAFE;
+            color: #1E3A8A;
+            border: 1px solid #93C5FD;
+        }
+        .video-result {
+            background-color: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #A7F3D0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .video-link {
+            display: inline-block;
+            background-color: #059669;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .video-link:hover {
+            background-color: #047857;
+        }
+        .debug-info {
+            background-color: #F3F4F6;
+            border: 1px solid #D1D5DB;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 ProMe视频创作测试</h1>
+        <p>这个页面专门用于测试N8n工作流的视频链接返回功能</p>
+        
+        <form id="videoForm">
+            <div class="form-group">
+                <label for="duration">🎬 视频时长（秒）：</label>
+                <select id="duration" required>
+                    <option value="">选择时长</option>
+                    <option value="15">15秒</option>
+                    <option value="24" selected>24秒 (推荐)</option>
+                    <option value="30">30秒</option>
+                    <option value="45">45秒</option>
+                    <option value="60">60秒</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="productDescription">📝 产品描述：</label>
+                <textarea id="productDescription" placeholder="请详细描述您的产品特点、功能、优势等..." required>今天我们艺站lobos老师带我们在公园上了一节户外写生课，阳光特别好，大家都很兴奋。老师让我们画身边的植物，我第一次发现原来光影变化这么有趣。刚开始我还担心我是零基础，但是lobos老师的色彩教学真的很用心，我能感受平时看不到的色彩，而且感觉时间过得很快，整个过程真的很放松，感觉自己像个真正的艺术家。</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="imageUrl">🖼️ 产品图片URL：</label>
+                <input type="url" id="imageUrl" placeholder="https://example.com/product-image.jpg" value="https://youke1.picui.cn/s1/2025/09/18/68cb9660072c4.jpg" required>
+                <small style="color: #6B7280;">必须以 .jpg、.jpeg、.png 或 .webp 结尾</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="characterGender">👤 人物性别：</label>
+                <select id="characterGender" required>
+                    <option value="">选择性别</option>
+                    <option value="male">男性</option>
+                    <option value="female" selected>女性</option>
+                    <option value="neutral">中性/不限</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="submitBtn">🚀 发送到AI创建视频</button>
+        </form>
+        
+        <div id="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://n8n-worker-k4m9.zeabur.app/webhook/9d5986f5-fcba-42bf-b3d7-5fd94660943a/chat';
+        
+        document.getElementById('videoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const resultDiv = document.getElementById('result');
+            
+            // 获取表单数据
+            const formData = {
+                duration: document.getElementById('duration').value,
+                productDescription: document.getElementById('productDescription').value,
+                imageUrl: document.getElementById('imageUrl').value,
+                characterGender: document.getElementById('characterGender').value
+            };
+            
+            console.log('🎯 提交表单数据:', formData);
+            
+            // 验证图片URL格式
+            const imageUrlPattern = /\.(jpg|jpeg|png|webp)(\?.*)?$/i;
+            if (!imageUrlPattern.test(formData.imageUrl)) {
+                showResult('error', '❌ 请输入有效的图片URL（必须以.jpg、.jpeg、.png或.webp结尾）');
+                return;
+            }
+            
+            // 设置加载状态
+            submitBtn.disabled = true;
+            submitBtn.textContent = '🔄 正在生成视频...';
+            showResult('processing', '✅ 请求已发送，正在等待N8n工作流响应...');
+            
+            try {
+                // 构建消息内容
+                const messageContent = `视频创作需求：
+🎬 视频时长：${formData.duration}秒
+📝 产品描述：${formData.productDescription}
+🖼️ 产品图片：${formData.imageUrl}
+👤 人物性别：${formData.characterGender}
+
+请根据以上信息创建视频内容。`;
+
+                // 生成或获取持久化的sessionId
+                let sessionId = localStorage.getItem('n8n_session_id');
+                if (!sessionId) {
+                    sessionId = `video_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    localStorage.setItem('n8n_session_id', sessionId);
+                }
+
+                const payload = {
+                    action: "sendMessage",
+                    sessionId: sessionId,
+                    chatInput: messageContent
+                };
+                
+                console.log('📤 发送载荷到N8n:', JSON.stringify(payload, null, 2));
+                console.log('🔗 webhook URL:', WEBHOOK_URL);
+                
+                // 发送请求
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log('📡 HTTP响应状态:', response.status, response.statusText);
+                console.log('📡 响应headers:', Object.fromEntries(response.headers.entries()));
+                
+                if (response.ok) {
+                    const responseData = await response.text();
+                    console.log('✅ N8n工作流原始响应:', responseData);
+                    console.log('📏 响应长度:', responseData.length);
+                    console.log('📏 响应类型:', typeof responseData);
+                    
+                    // 解析响应查找视频URL
+                    let videoUrl = null;
+                    let parsedResponse = null;
+                    
+                    try {
+                        parsedResponse = JSON.parse(responseData);
+                        console.log('📊 成功解析JSON响应:', JSON.stringify(parsedResponse, null, 2));
+                        console.log('📊 JSON对象所有键:', Object.keys(parsedResponse));
+                        
+                        // 检查所有可能包含视频URL的字段
+                        videoUrl = parsedResponse.videoUrl || parsedResponse.video_url || 
+                                  parsedResponse.downloadUrl || parsedResponse.download_url ||
+                                  parsedResponse.result || parsedResponse.output ||
+                                  parsedResponse.finalVideoUrl || parsedResponse.url ||
+                                  parsedResponse.link || parsedResponse.download ||
+                                  parsedResponse.file_url || parsedResponse.fileUrl;
+                        
+                        console.log('🔍 从字段提取的videoUrl:', videoUrl);
+                        
+                        // 处理N8n特殊格式 "视频地址：[URL]"
+                        if (parsedResponse.finalVideoUrl && typeof parsedResponse.finalVideoUrl === 'string') {
+                            const match = parsedResponse.finalVideoUrl.match(/视频地址[：:]\s*(https?:\/\/[^\s]+)/);
+                            if (match) {
+                                videoUrl = match[1];
+                                console.log('🎯 从finalVideoUrl提取到:', videoUrl);
+                            }
+                        }
+                        
+                        // 在所有字符串值中查找视频URL
+                        if (!videoUrl) {
+                            Object.keys(parsedResponse).forEach(key => {
+                                const value = parsedResponse[key];
+                                if (typeof value === 'string' && value.includes('http') && 
+                                    (value.includes('.mp4') || value.includes('.mov') || value.includes('.avi'))) {
+                                    console.log(`🔍 在字段 ${key} 中发现可能的视频URL:`, value);
+                                    if (!videoUrl) videoUrl = value;
+                                }
+                            });
+                        }
+                        
+                    } catch (e) {
+                        console.log('📝 不是JSON格式，作为纯文本处理:', e);
+                        console.log('📄 原始文本内容:', responseData);
+                        
+                        // 直接在文本中查找视频URL
+                        const urlMatch = responseData.match(/https?:\/\/[^\s]+\.(mp4|mov|avi|m4v|webm)/gi);
+                        if (urlMatch && urlMatch.length > 0) {
+                            videoUrl = urlMatch[0];
+                            console.log('🎯 从文本中提取到视频URL:', videoUrl);
+                        }
+                        
+                        // 检查中文格式 "视频地址：[URL]"
+                        const chineseMatch = responseData.match(/视频地址[：:]\s*(https?:\/\/[^\s]+)/);
+                        if (chineseMatch) {
+                            videoUrl = chineseMatch[1];
+                            console.log('🎯 从中文格式提取到视频URL:', videoUrl);
+                        }
+                        
+                        // 检查任何包含http的行
+                        const lines = responseData.split('\n');
+                        lines.forEach((line, index) => {
+                            if (line.includes('http')) {
+                                console.log(`📄 第${index + 1}行包含http:`, line);
+                            }
+                        });
+                    }
+                    
+                    if (videoUrl) {
+                        // 成功找到视频URL
+                        console.log('🎉 视频生成完成！最终URL:', videoUrl);
+                        showResult('success', 
+                            `🎉 视频生成完成！<br><br>` +
+                            `<div class="video-result">` +
+                            `<strong>✅ 您的视频已准备就绪！</strong><br><br>` +
+                            `<a href="${videoUrl}" target="_blank" class="video-link">📹 下载视频</a>` +
+                            `<a href="${videoUrl}" target="_blank" class="video-link" style="margin-left: 10px;">🎬 在线预览</a><br><br>` +
+                            `<small><strong>视频地址:</strong> ${videoUrl}</small>` +
+                            `</div>` +
+                            `<div class="debug-info"><strong>N8n响应:</strong><br>${responseData}</div>`
+                        );
+                    } else {
+                        // 没有找到视频URL
+                        console.log('⏳ 暂未找到视频URL，可能仍在处理中');
+                        showResult('processing', 
+                            `⏳ AI正在处理中，未找到视频URL<br><br>` +
+                            `<div class="debug-info"><strong>N8n响应:</strong><br>${responseData}</div>`
+                        );
+                    }
+                    
+                } else {
+                    const errorText = await response.text();
+                    console.log('❌ HTTP错误响应:', errorText);
+                    showResult('error', 
+                        `❌ HTTP错误 (${response.status}): ${response.statusText}<br><br>` +
+                        `<div class="debug-info"><strong>错误详情:</strong><br>${errorText}</div>`
+                    );
+                }
+                
+            } catch (error) {
+                console.error('❌ 发送到N8n失败:', error);
+                showResult('error', `❌ 连接失败: ${error.message}。请检查网络连接和N8n工作流状态。`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 发送到AI创建视频';
+            }
+        });
+        
+        function showResult(type, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = message;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N8n Form Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>N8n视频创作表单测试</h1>
+        <p>这个页面可以直接测试N8n工作流，无需启动完整的React应用。</p>
+        
+        <form id="videoForm">
+            <div class="form-group">
+                <label for="duration">视频时长（秒）：</label>
+                <select id="duration" required>
+                    <option value="">选择时长</option>
+                    <option value="15">15秒</option>
+                    <option value="24" selected>24秒 (推荐)</option>
+                    <option value="30">30秒</option>
+                    <option value="45">45秒</option>
+                    <option value="60">60秒</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="productDescription">产品描述：</label>
+                <textarea id="productDescription" placeholder="请详细描述您的产品特点、功能、优势等..." required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="imageUrl">产品图片URL：</label>
+                <input type="url" id="imageUrl" placeholder="https://example.com/product-image.jpg" required>
+                <small>必须以 .jpg、.jpeg、.png 或 .webp 结尾</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="characterGender">人物性别：</label>
+                <select id="characterGender" required>
+                    <option value="">选择性别</option>
+                    <option value="male">男性</option>
+                    <option value="female">女性</option>
+                    <option value="neutral">中性/不限</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="submitBtn">发送到AI创建视频</button>
+        </form>
+        
+        <div id="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://n8n-worker-k4m9.zeabur.app/webhook/9d5986f5-fcba-42bf-b3d7-5fd94660943a/chat';
+        
+        document.getElementById('videoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const resultDiv = document.getElementById('result');
+            
+            // 获取表单数据
+            const formData = {
+                duration: document.getElementById('duration').value,
+                productDescription: document.getElementById('productDescription').value,
+                imageUrl: document.getElementById('imageUrl').value,
+                characterGender: document.getElementById('characterGender').value
+            };
+            
+            console.log('🎯 提交表单数据:', formData);
+            
+            // 验证图片URL格式
+            const imageUrlPattern = /\.(jpg|jpeg|png|webp)(\?.*)?$/i;
+            if (!imageUrlPattern.test(formData.imageUrl)) {
+                showResult('error', '请输入有效的图片URL（必须以.jpg、.jpeg、.png或.webp结尾）');
+                return;
+            }
+            
+            // 设置加载状态
+            submitBtn.disabled = true;
+            submitBtn.textContent = '正在生成视频...';
+            showResult('loading', '✅ 请求已发送，等待N8n工作流自然完成（2-5分钟），无前端超时限制...');
+            
+            try {
+                // 构建消息内容（与React组件完全一致）
+                const messageContent = `视频创作需求：
+🎬 视频时长：${formData.duration}秒
+📝 产品描述：${formData.productDescription}
+🖼️ 产品图片：${formData.imageUrl}
+👤 人物性别：${formData.characterGender}
+
+请根据以上信息创建视频内容。`;
+
+                // 生成或获取持久化的sessionId
+                let sessionId = localStorage.getItem('n8n_session_id');
+                if (!sessionId) {
+                    sessionId = `video_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    localStorage.setItem('n8n_session_id', sessionId);
+                }
+
+                const payload = {
+                    action: "sendMessage",
+                    sessionId: sessionId,
+                    chatInput: messageContent
+                };
+                
+                console.log('📤 发送数据到N8n:', payload);
+                console.log('🔄 等待N8n工作流完成，保持连接直到收到最终结果...');
+                
+                // 不设置任何超时，让N8n自然完成并返回结果
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log('📡 响应状态:', response.status);
+                
+                if (response.ok) {
+                    const responseData = await response.text();
+                    console.log('✅ N8n工作流完成，收到最终响应');
+                    console.log('📄 最终响应数据:', responseData);
+                    
+                    // 解析最终响应，查找视频URL
+                    let videoUrl = null;
+                    try {
+                        const parsedResponse = JSON.parse(responseData);
+                        console.log('📊 解析的JSON响应:', parsedResponse);
+                        
+                        // 检查N8n子工作流返回的标准格式 {"videoUrl": "https://..."}
+                        if (parsedResponse.videoUrl) {
+                            videoUrl = parsedResponse.videoUrl;
+                            console.log('🎥 找到标准videoUrl字段:', videoUrl);
+                        }
+                        
+                        // 检查其他可能的字段
+                        if (!videoUrl) {
+                            videoUrl = parsedResponse.video_url || 
+                                      parsedResponse.downloadUrl || parsedResponse.download_url ||
+                                      parsedResponse.result || parsedResponse.output ||
+                                      parsedResponse.finalVideoUrl;
+                        }
+                        
+                        // 如果是N8n的finalVideoUrl格式 "视频地址：[URL]"，提取实际URL
+                        if (parsedResponse.finalVideoUrl && typeof parsedResponse.finalVideoUrl === 'string') {
+                            const match = parsedResponse.finalVideoUrl.match(/视频地址[：:]\\s*(https?:\\/\\/[^\\s]+)/);
+                            if (match) {
+                                videoUrl = match[1];
+                                console.log('🎥 从finalVideoUrl提取到视频地址:', videoUrl);
+                            }
+                        }
+                        
+                    } catch (e) {
+                        console.log('📝 响应不是JSON格式，检查文本内容');
+                        
+                        // 如果不是JSON，检查是否直接是URL
+                        if (responseData.includes('http') && (responseData.includes('.mp4') || responseData.includes('.mov'))) {
+                            videoUrl = responseData.trim();
+                            console.log('🎥 响应直接包含视频URL:', videoUrl);
+                        }
+                        
+                        // 检查是否是N8n的文本格式响应 "视频地址：[URL]"
+                        const match = responseData.match(/视频地址[：:]\\s*(https?:\\/\\/[^\\s]+)/);
+                        if (match) {
+                            videoUrl = match[1];
+                            console.log('🎥 从文本响应提取到视频地址:', videoUrl);
+                        }
+                    }
+                    
+                    if (videoUrl) {
+                        // 成功收到视频URL
+                        console.log('🎉 视频生成完成！最终URL:', videoUrl);
+                        showResult('success', `🎉 视频生成完成！<br><br><a href="${videoUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">点击下载视频</a><br><br><strong>最终响应：</strong><br><pre>${responseData}</pre>`);
+                    } else {
+                        // 没有找到视频URL，但工作流执行完成
+                        console.log('⚠️ 工作流完成但未找到视频URL');
+                        showResult('error', `⚠️ 工作流执行完成，但未找到视频URL。请检查N8n子工作流的输出格式。<br><br><strong>响应内容：</strong><br><pre>${responseData}</pre>`);
+                    }
+                } else if (response.status === 500) {
+                    const errorText = await response.text();
+                    console.log('❌ N8n workflow error:', errorText);
+                    showResult('error', `❌ N8n工作流执行出错，请检查工作流配置。<br><br><strong>错误详情：</strong><br><pre>${errorText}</pre>`);
+                } else {
+                    const errorText = await response.text();
+                    console.log('❌ HTTP错误响应:', errorText);
+                    showResult('error', `❌ HTTP错误 (${response.status}): ${response.statusText}<br><pre>${errorText}</pre>`);
+                }
+                
+            } catch (error) {
+                console.error('❌ N8n请求失败:', error);
+                showResult('error', `❌ 连接失败: ${error.message}。请检查网络连接和N8n工作流状态。`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '发送到AI创建视频';
+            }
+        });
+        
+        function showResult(type, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = message;
+            resultDiv.style.display = 'block';
+        }
+        
+        // 添加测试按钮
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.container');
+            const testButton = document.createElement('button');
+            testButton.textContent = '填充测试数据';
+            testButton.style.marginLeft = '10px';
+            testButton.style.backgroundColor = '#28a745';
+            testButton.addEventListener('click', function() {
+                document.getElementById('duration').value = '24';
+                document.getElementById('productDescription').value = '这是一款革命性的智能手表，拥有先进的健康监测功能，包括心率监测、睡眠跟踪、运动模式识别等。产品采用时尚的设计，适合各种场合佩戴，电池续航长达7天。';
+                document.getElementById('imageUrl').value = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop';
+                document.getElementById('characterGender').value = 'female';
+            });
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.parentNode.insertBefore(testButton, submitBtn.nextSibling);
+        });
+    </script>
+</body>
+</html>

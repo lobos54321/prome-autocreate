@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐛 按钮点击调试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        button { background-color: #8B5CF6; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background-color: #7C3AED; }
+        button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+        .form-group { margin: 15px 0; }
+        input, textarea, select { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+        .result { margin: 15px 0; padding: 15px; border-radius: 4px; border: 1px solid #ddd; }
+        .success { background-color: #D1FAE5; color: #065F46; }
+        .error { background-color: #FEE2E2; color: #991B1B; }
+        .debug-info { background-color: #1F2937; color: #F9FAFB; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐛 表单按钮点击调试</h1>
+        <p>用于测试表单提交是否正常工作</p>
+        
+        <form id="testForm">
+            <div class="form-group">
+                <label>视频时长：</label>
+                <select name="duration" required>
+                    <option value="">请选择</option>
+                    <option value="24" selected>24秒 (推荐)</option>
+                    <option value="30">30秒</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>产品描述：</label>
+                <textarea name="productDescription" placeholder="请输入产品描述..." required>今天我们艺站lobos老师带我们在公园上了一节户外写生课，阳光特别好，大家都很兴奋。</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>产品图片URL：</label>
+                <input type="url" name="imageUrl" placeholder="https://example.com/image.jpg" value="https://youke1.picui.cn/s1/2025/09/18/68cb9660072c4.jpg" required />
+            </div>
+            
+            <div class="form-group">
+                <label>人物性别：</label>
+                <select name="characterGender" required>
+                    <option value="">请选择</option>
+                    <option value="female" selected>女性</option>
+                    <option value="male">男性</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="submitBtn">🚀 发送到AI创建视频</button>
+        </form>
+        
+        <div id="results"></div>
+        
+        <div class="debug-info">
+            <strong>调试日志:</strong>
+            <div id="debugLog"></div>
+        </div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://n8n-worker-k4m9.zeabur.app/webhook/9d5986f5-fcba-42bf-b3d7-5fd94660943a/chat';
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('debugLog');
+            logDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            console.log(message);
+        }
+        
+        function addResult(type, content) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = content;
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        document.getElementById('testForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            log('🎯 表单提交事件触发');
+            
+            const formData = new FormData(e.target);
+            const data = {
+                duration: formData.get('duration'),
+                productDescription: formData.get('productDescription'),
+                imageUrl: formData.get('imageUrl'),
+                characterGender: formData.get('characterGender')
+            };
+            
+            log('📋 收集到的表单数据: ' + JSON.stringify(data, null, 2));
+            
+            // 验证表单
+            if (!data.duration || !data.productDescription || !data.imageUrl || !data.characterGender) {
+                log('❌ 表单验证失败');
+                addResult('error', '请填写所有必填字段');
+                return;
+            }
+            
+            log('✅ 表单验证通过，准备发送到N8n');
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '正在发送...';
+            
+            try {
+                const messageContent = `视频创作需求：
+🎬 视频时长：${data.duration}秒
+📝 产品描述：${data.productDescription}
+🖼️ 产品图片：${data.imageUrl}
+👤 人物性别：${data.characterGender}
+
+请根据以上信息创建视频内容。`;
+                
+                const sessionId = `debug_test_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+                
+                const payload = {
+                    action: "sendMessage",
+                    sessionId: sessionId,
+                    chatInput: messageContent
+                };
+                
+                log('📤 发送载荷: ' + JSON.stringify(payload, null, 2));
+                
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                log(`📡 HTTP响应: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const responseData = await response.text();
+                    log('✅ N8n响应: ' + responseData.substring(0, 200));
+                    addResult('success', `成功发送到N8n!<br><pre>${responseData}</pre>`);
+                } else {
+                    const errorData = await response.text();
+                    log('❌ N8n错误: ' + errorData);
+                    addResult('error', `发送失败: ${response.status}<br>${errorData}`);
+                }
+                
+            } catch (error) {
+                log('❌ 网络错误: ' + error.message);
+                addResult('error', '网络连接失败: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 发送到AI创建视频';
+            }
+        });
+        
+        // 检测按钮点击
+        document.getElementById('submitBtn').addEventListener('click', function(e) {
+            log('🖱️ 按钮点击事件检测到');
+        });
+        
+        window.onload = function() {
+            log('🔧 页面加载完成，开始调试');
+            addResult('success', '调试页面已准备好，请点击按钮测试');
+        };
+    </script>
+</body>
+</html>
