@@ -26,26 +26,51 @@ export default function PointsDisplay({ className = '', showDetails = true }: Po
   
   useEffect(() => {
     const currentUser = authService.getCurrentUserSync();
+    
+    // 🔧 验证用户ID格式，如果不是UUID则清除缓存
+    if (currentUser && currentUser.id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(currentUser.id)) {
+        // 防止无限循环：检查是否已经标记过
+        const alreadyClearing = sessionStorage.getItem('clearing-invalid-user');
+        if (alreadyClearing) {
+          console.log('Already clearing invalid user, skipping...');
+          return;
+        }
+        
+        console.error('⚠️ Invalid user ID detected in PointsDisplay:', currentUser.id);
+        console.log('Clearing invalid cache and forcing re-login...');
+        
+        // 标记正在清除
+        sessionStorage.setItem('clearing-invalid-user', 'true');
+        
+        // 清除所有缓存
+        localStorage.clear();
+        
+        // 强制登出
+        authService.forceLogout();
+        
+        // 重定向到登录页（不使用 window.location.href，使用 replace）
+        window.location.replace('/login');
+        
+        return; // 阻止继续执行
+      }
+    }
+    
     setUser(currentUser);
 
     // Load exchange rate
     loadExchangeRate();
 
-    // Force refresh balance from database if user exists and balance is 0
-    // This handles the cache invalidation issue
-    if (currentUser && currentUser.id && currentUser.balance === 0) {
-      console.log('User balance is 0, checking if refresh is needed...');
+    // 🔧 从数据库刷新余额，确保显示最新数据
+    if (currentUser && currentUser.id) {
+      console.log('PointsDisplay initialized, refreshing balance from database...', {
+        userId: currentUser.id,
+        cachedBalance: currentUser.balance
+      });
       
-      // For the specific problematic user, always refresh
-      if (currentUser.id === '9dee4891-89a6-44ee-8fe8-69097846e97d') {
-        console.log('Problematic user detected, forcing balance refresh...');
-        refreshBalanceFromDatabase();
-      } else {
-        // For other users, refresh after a short delay to avoid blocking UI
-        setTimeout(() => {
-          refreshBalanceFromDatabase();
-        }, 1000);
-      }
+      // 立即刷新余额（不延迟，确保新打开页面时能立即显示正确余额）
+      refreshBalanceFromDatabase();
     }
 
     // 监听认证状态变化

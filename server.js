@@ -671,7 +671,7 @@ if (!global.billingTracker) {
 
 // 🔧 UNIFIED BILLING: 统一的积分扣除函数
 async function handleTokenBilling(responseData, user, endpoint = 'unknown', options = {}) {
-  const { emergencyFallback = false } = options;
+  const { emergencyFallback = false, headerMetadata = null } = options;
   
   // 🔧 全局tracking：记录每次billing调用
   global.billingTracker.totalCalls++;
@@ -681,37 +681,47 @@ async function handleTokenBilling(responseData, user, endpoint = 'unknown', opti
   
   const callId = `${endpoint}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   console.log(`🎯 [BILLING-TRACKER] Call #${global.billingTracker.totalCalls}: ${callId}`);
-  console.log(`🔍 [BILLING-${endpoint}] Checking responseData structure:`, {
+  console.log(`🔍 [BILLING-${endpoint}] Checking data sources:`, {
     hasResponseData: !!responseData,
+    hasHeaderMetadata: !!headerMetadata,
     hasMetadata: !!(responseData?.metadata),
     hasUsage: !!(responseData?.metadata?.usage), 
     hasTotalTokens: !!(responseData?.metadata?.usage?.total_tokens),
     hasUsageField: !!(responseData?.usage), // 检查直接在responseData下的usage字段
-    responseDataKeys: responseData ? Object.keys(responseData) : [],
-    metadataKeys: responseData?.metadata ? Object.keys(responseData.metadata) : [],
-    usageKeys: responseData?.metadata?.usage ? Object.keys(responseData.metadata.usage) : []
+    hasHeaderUsage: !!(headerMetadata?.usage),
+    headerModel: headerMetadata?.model || 'unknown'
   });
 
   // 🔧 增强条件检查：支持多种数据结构
   let totalTokens = null;
   let actualCost = null;
   let usage = null;
+  let modelName = null;
 
-  // 检查 metadata.usage (标准位置)
-  if (responseData?.metadata?.usage?.total_tokens) {
+  // 🎯 优先级1: 检查响应头中的token数据（最可靠）
+  if (headerMetadata?.usage && headerMetadata.usage.total_tokens > 0) {
+    usage = headerMetadata.usage;
+    totalTokens = usage.total_tokens;
+    actualCost = Number(usage.total_price || (totalTokens * 0.000002175));
+    modelName = headerMetadata.model;
+    console.log(`✅ [BILLING-${endpoint}] Found usage in RESPONSE HEADERS (priority source)`);
+    console.log(`📊 [BILLING-${endpoint}] Header data: ${totalTokens} tokens, model: ${modelName}`);
+  }
+  // 优先级2: 检查 metadata.usage (标准位置)
+  else if (responseData?.metadata?.usage?.total_tokens) {
     usage = responseData.metadata.usage;
     totalTokens = usage.total_tokens;
     actualCost = Number(usage.total_price || (totalTokens * 0.000002175));
     console.log(`✅ [BILLING-${endpoint}] Found usage in metadata.usage`);
   }
-  // 检查直接在responseData下的usage字段
+  // 优先级3: 检查直接在responseData下的usage字段
   else if (responseData?.usage?.total_tokens) {
     usage = responseData.usage;
     totalTokens = usage.total_tokens;
     actualCost = Number(usage.total_price || (totalTokens * 0.000002175));
     console.log(`✅ [BILLING-${endpoint}] Found usage in responseData.usage`);
   }
-  // 最后的fallback：如果没有usage但有其他token相关字段
+  // 优先级4: 最后的fallback：如果没有usage但有其他token相关字段
   else if (responseData && (responseData.token_usage || responseData.tokens)) {
     const tokens = responseData.token_usage?.total_tokens || responseData.tokens || 100; // fallback默认值
     totalTokens = tokens;
@@ -720,7 +730,10 @@ async function handleTokenBilling(responseData, user, endpoint = 'unknown', opti
   }
 
   if (totalTokens && totalTokens > 0) {
-    const pointsToDeduct = Math.ceil(actualCost * 10000); // 🔧 CORRECT FORMULA: 美金成本 × 10000 = 积分
+    // 🔧 CORRECT FORMULA: (Dify USD成本 × 1.25利润率 × 汇率) = 积分
+    const PROFIT_MARGIN = 1.25; // 25%利润
+    const EXCHANGE_RATE = 10000; // 1 USD = 10000 积分
+    const pointsToDeduct = Math.ceil(actualCost * PROFIT_MARGIN * EXCHANGE_RATE);
     
     // 🔧 Emergency fallback特殊标记
     if (emergencyFallback) {
@@ -729,7 +742,7 @@ async function handleTokenBilling(responseData, user, endpoint = 'unknown', opti
     } else {
       console.log(`💰 [BILLING-${endpoint}] Multi-node LLM: ${totalTokens} tokens`);
     }
-    console.log(`💰 [COST-${endpoint}] Actual cost: $${actualCost.toFixed(6)} = ${pointsToDeduct} points`);
+    console.log(`💰 [COST-${endpoint}] Dify成本: $${actualCost.toFixed(6)} → +25%利润 → ×${EXCHANGE_RATE}汇率 = ${pointsToDeduct} 积分`);
     
     const userId = getValidUserId(user);
     
@@ -1016,6 +1029,7 @@ app.post('/api/dify/chat/simple', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${DIFY_API_KEY}`,
         'Content-Type': 'application/json',
+        'X-Dify-Version': '1.9.1', // Enable experimental token stats
       },
       body: JSON.stringify({
         inputs: {}, // 🔧 DIFY需要inputs参数
@@ -1126,6 +1140,7 @@ app.post('/api/dify/chat', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${DIFY_API_KEY}`,
         'Content-Type': 'application/json',
+        'X-Dify-Version': '1.9.1', // Enable experimental token stats
       },
       body: JSON.stringify({
         inputs: {}, // 🔧 DIFY需要inputs参数
@@ -1537,6 +1552,7 @@ app.post('/api/dify', async (req, res) => {
           headers: {
             'Authorization': `Bearer ${DIFY_API_KEY}`,
             'Content-Type': 'application/json',
+            'X-Dify-Version': '1.9.1',
           },
           body: JSON.stringify(requestBody),
         },
@@ -1687,7 +1703,7 @@ app.post('/api/dify', async (req, res) => {
               buffer = buffer.substring(lineEndIndex + 1);
               
               if (line.startsWith('data: ')) {
-                const data = line.substring(6).trim();
+                let data = line.substring(6).trim();
                 
                 if (data === '[DONE]') {
                   console.log('🔚 Streaming ended with [DONE]');
@@ -1703,10 +1719,40 @@ app.post('/api/dify', async (req, res) => {
                     finalData = parsed;
                   }
                   
+                  // 🎯 提取node_finished事件中的execution_metadata（真实token数据位置）
+                  if (parsed.event === 'node_finished' && parsed.data?.execution_metadata) {
+                    const execMeta = parsed.data.execution_metadata;
+                    if (execMeta.total_tokens > 0) {
+                      if (!bodyUsageData) {
+                        bodyUsageData = {
+                          total_tokens: 0,
+                          total_price: "0.0",
+                          prompt_tokens: 0,
+                          completion_tokens: 0
+                        };
+                      }
+                      // 累加每个节点的token使用
+                      bodyUsageData.total_tokens += execMeta.total_tokens;
+                      bodyUsageData.total_price = String(parseFloat(bodyUsageData.total_price || 0) + parseFloat(execMeta.total_price || 0));
+                      console.log(`[Server] 💰 从node_finished提取token: +${execMeta.total_tokens} tokens, $${execMeta.total_price} (累计: ${bodyUsageData.total_tokens} tokens)`);
+                    }
+                  }
+                  
                   // 🎯 提取响应体中的usage信息（包含价格）
                   if (parsed.event === 'message_end' && parsed.metadata?.usage) {
-                    bodyUsageData = parsed.metadata.usage;
-                    console.log('[Server] 📊 从响应体提取usage信息 (含价格): token统计和价格数据已获取');
+                    // 如果message_end有usage且不为0，使用它；否则保留从node_finished累加的数据
+                    if (parsed.metadata.usage.total_tokens > 0) {
+                      bodyUsageData = parsed.metadata.usage;
+                      console.log('[Server] 📊 从message_end提取usage信息: token统计和价格数据已获取');
+                    } else if (bodyUsageData && bodyUsageData.total_tokens > 0) {
+                      console.log(`[Server] ✅ message_end的usage为0，使用从node_finished累加的数据: ${bodyUsageData.total_tokens} tokens`);
+                      // 🎯 CRITICAL FIX: 在转发给前端之前，用累加的数据覆盖message_end的零值usage
+                      parsed.metadata.usage = bodyUsageData;
+                      data = JSON.stringify(parsed);
+                      console.log(`[Server] ✅ 已将累加的usage覆盖到message_end事件中，准备转发给前端`);
+                    } else {
+                      console.log('[Server] ⚠️ message_end和node_finished都没有token数据');
+                    }
                   }
                   
                   // Forward the streaming data to client
@@ -1834,6 +1880,15 @@ app.post('/api/dify', async (req, res) => {
             console.log(`🔧 [EMERGENCY-BILLING] Created fallback finalData with ${estimatedTokens} tokens`);
           }
 
+          // 🎯 CRITICAL FIX: 用从node_finished累加的usage数据覆盖message_end的0值usage
+          if (finalData && bodyUsageData && bodyUsageData.total_tokens > 0) {
+            if (!finalData.metadata) {
+              finalData.metadata = {};
+            }
+            finalData.metadata.usage = bodyUsageData;
+            console.log(`✅ [BILLING-FIX] 用从node_finished累加的usage覆盖finalData: ${bodyUsageData.total_tokens} tokens, $${bodyUsageData.total_price}`);
+          }
+
           // Save to database if we have final data
           if (finalData && supabase) {
             // 🔧 BILLING: 处理积分扣除
@@ -1846,7 +1901,8 @@ app.post('/api/dify', async (req, res) => {
               billingSource: finalData?.billing_source || 'NORMAL'
             });
             let billingInfo = await handleTokenBilling(finalData, user, 'WORKFLOW_STREAM', {
-              emergencyFallback: requestBody?.emergency_fallback || false
+              emergencyFallback: requestBody?.emergency_fallback || false,
+              headerMetadata: responseHeaderMetadata
             });
             
             // 🚨 CRITICAL FIX: 如果billing失败，强制执行fallback billing
@@ -2004,7 +2060,9 @@ app.post('/api/dify', async (req, res) => {
       hasTokens: !!(responseData?.metadata?.usage?.total_tokens),
       tokensValue: responseData?.metadata?.usage?.total_tokens
     });
-    let billingInfo = await handleTokenBilling(responseData, user, 'DIFY_GENERIC');
+    let billingInfo = await handleTokenBilling(responseData, user, 'DIFY_GENERIC', {
+      headerMetadata: headerMetadata
+    });
 
     // 🚨 CRITICAL FIX: 如果blocking模式billing失败，强制执行fallback billing
     if (!billingInfo || !billingInfo.success || billingInfo.tokens === 0) {
@@ -2195,6 +2253,7 @@ app.post('/api/dify/workflow', async (req, res) => {
           let fullAnswer = '';
           let finalData = null;
           let currentConversationId = null; // Track conversation_id from DIFY response
+          let accumulatedUsage = null; // 累加从node_finished提取的token数据
 
           try {
             while (true) {
@@ -2276,6 +2335,25 @@ app.post('/api/dify/workflow', async (req, res) => {
                       });
                     }
 
+                    // 🎯 提取node_finished事件中的execution_metadata（真实token数据位置）
+                    if (parsed.event === 'node_finished' && parsed.data?.execution_metadata) {
+                      const execMeta = parsed.data.execution_metadata;
+                      if (execMeta.total_tokens > 0) {
+                        if (!accumulatedUsage) {
+                          accumulatedUsage = {
+                            total_tokens: 0,
+                            total_price: "0.0",
+                            prompt_tokens: 0,
+                            completion_tokens: 0
+                          };
+                        }
+                        // 累加每个节点的token使用
+                        accumulatedUsage.total_tokens += execMeta.total_tokens;
+                        accumulatedUsage.total_price = String(parseFloat(accumulatedUsage.total_price || 0) + parseFloat(execMeta.total_price || 0));
+                        console.log(`[Workflow] 💰 从node_finished提取token: +${execMeta.total_tokens} tokens, $${execMeta.total_price} (累计: ${accumulatedUsage.total_tokens} tokens)`);
+                      }
+                    }
+                    
                     // Collect answer content and final data
                     if (parsed.event === 'message' && parsed.answer) {
                       fullAnswer += parsed.answer;
@@ -2322,12 +2400,22 @@ app.post('/api/dify/workflow', async (req, res) => {
                       }
                       
                       // Also check message_end events for usage data
-                      if (parsed.event === 'message_end' && parsed.metadata && parsed.metadata.usage) {
-                        console.log('💰 [STREAMING] Found usage data in message_end event:', JSON.stringify(parsed.metadata.usage));
-                        finalData.metadata = {
-                          ...finalData.metadata,
-                          usage: parsed.metadata.usage
-                        };
+                      if (parsed.event === 'message_end') {
+                        if (parsed.metadata && parsed.metadata.usage && parsed.metadata.usage.total_tokens > 0) {
+                          console.log('💰 [STREAMING] Found usage data in message_end event:', JSON.stringify(parsed.metadata.usage));
+                          finalData.metadata = {
+                            ...finalData.metadata,
+                            usage: parsed.metadata.usage
+                          };
+                        } else if (accumulatedUsage && accumulatedUsage.total_tokens > 0) {
+                          console.log(`✅ [STREAMING] message_end的usage为0，使用从node_finished累加的数据: ${accumulatedUsage.total_tokens} tokens`);
+                          finalData.metadata = {
+                            ...finalData.metadata,
+                            usage: accumulatedUsage
+                          };
+                        } else {
+                          console.log('⚠️ [STREAMING] message_end和node_finished都没有token数据');
+                        }
                       }
                     }
 
@@ -2524,7 +2612,8 @@ app.post('/api/dify/:conversationId/regenerate-painpoints', async (req, res) => 
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${DIFY_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Dify-Version': '1.9.1'
         },
         body: JSON.stringify(regenerateRequestBody)
       },
@@ -2666,7 +2755,8 @@ app.post('/api/dify/:conversationId/start-painpoints', async (req, res) => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${DIFY_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Dify-Version': '1.9.1'
         },
         body: JSON.stringify(requestBody)
       },
@@ -3020,6 +3110,7 @@ app.post('/api/dify/:conversationId/stream', async (req, res) => {
     let fullAnswer = '';
     let finalData = null;
     let currentConversationId = null; // Track conversation_id from DIFY response
+    const savedHeaderMetadata = headerMetadata; // 保存响应头元数据供后续billing使用
 
     try {
       let allChunks = '';
@@ -3202,7 +3293,9 @@ app.post('/api/dify/:conversationId/stream', async (req, res) => {
         };
         
         // 🔧 BILLING: 处理积分扣除（现在有fallback usage数据了）
-        const billingInfo = await handleTokenBilling(finalData, req.body.user, 'STREAM_FALLBACK');
+        const billingInfo = await handleTokenBilling(finalData, req.body.user, 'STREAM_FALLBACK', {
+          headerMetadata: savedHeaderMetadata
+        });
         
         // 🔧 关键修复：为fallback billing也发送balance_updated事件
         if (billingInfo && billingInfo.newBalance !== null && billingInfo.success) {

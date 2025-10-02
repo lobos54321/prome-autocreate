@@ -229,7 +229,14 @@ export function DifyChatInterface({
     isCloudSyncEnabled: true,
     syncStatus: 'idle'
   });
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(() => {
+    // 从 localStorage 恢复历史记录面板状态
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dify_show_history');
+      return saved === 'true';
+    }
+    return false;
+  });
   const [migrationStatus, setMigrationStatus] = useState<{
     needsMigration: boolean;
     isChecking: boolean;
@@ -1549,28 +1556,12 @@ export function DifyChatInterface({
 
               // 🔧 修复：处理JSON响应中的usage信息（积分扣除的关键修复）
               if (parsed.metadata?.usage && !tokenUsageProcessed) {
-                console.log('[Token] ✅ Processing JSON response token usage:', parsed.metadata.usage);
+                console.log('[Token] ✅ Received token usage data (already processed by backend):', parsed.metadata.usage);
                 tokenUsageProcessed = true; // 标记已处理，避免重复计费
                 
-                try {
-                  // 异步处理token使用，不阻塞UI
-                  processTokenUsage(
-                    parsed.metadata.usage,
-                    parsed.conversation_id,
-                    parsed.message_id || `json_response_${Date.now()}`,
-                    extractModelFromResponse(parsed, 'json_blocking') || 'dify-blocking'
-                  ).then(result => {
-                    if (result.success) {
-                      console.log('[Token] ✅ Successfully processed JSON response token usage:', result.newBalance);
-                    } else {
-                      console.warn('[Token] ❌ Failed to process JSON response token usage:', result.error);
-                    }
-                  }).catch(error => {
-                    console.error('[Token] ❌ Error processing JSON response token usage:', error);
-                  });
-                } catch (tokenError) {
-                  console.error('[Token] ❌ Error preparing JSON response token usage:', tokenError);
-                }
+                // 🔧 修复：后端已经处理积分扣除并发送balance_updated事件
+                // 前端只需要监听balance_updated事件，不需要再次调用processTokenUsage
+                console.log('[Token] Backend handles billing - frontend only listens to balance_updated event');
               }
               
               // 🎯 处理工作流开始事件 - 预先显示所有节点
@@ -1939,25 +1930,8 @@ export function DifyChatInterface({
                       console.log('[Token] ✅ Processing enhanced token usage (headers + body combined):', parsed.data.usage);
                       tokenUsageProcessed = true; // 标记已处理，避免重复计费
                       
-                      try {
-                        // 使用结合响应头准确token数量和响应体价格信息的数据进行计费
-                        processTokenUsage(
-                          parsed.data.usage,
-                          parsed.conversation_id,
-                          parsed.message_id || `enhanced_${Date.now()}`,
-                          parsed.data.usage.model || extractModelFromResponse(parsed, 'enhanced_combined') || 'dify-chatflow'
-                        ).then(result => {
-                          if (result.success) {
-                            console.log('[Token] ✅ Successfully processed enhanced token usage:', result.newBalance);
-                          } else {
-                            console.warn('[Token] ❌ Failed to process enhanced token usage:', result.error);
-                          }
-                        }).catch(error => {
-                          console.error('[Token] ❌ Error processing enhanced token usage:', error);
-                        });
-                      } catch (tokenError) {
-                        console.error('[Token] ❌ Error preparing enhanced token usage:', tokenError);
-                      }
+                      // 🔧 修复：后端已处理计费，前端不重复处理
+                      console.log('[Token] Enhanced usage data received (already processed by backend):', parsed.data.usage);
                     } else {
                       console.log('[Token] ℹ️ Enhanced token usage already processed or no usage data available');
                     }
@@ -1970,25 +1944,8 @@ export function DifyChatInterface({
                       console.log('[Token] ✅ Processing server-extracted token usage (from Dify response headers):', parsed.data.usage);
                       tokenUsageProcessed = true; // 标记已处理，避免重复计费
                       
-                      try {
-                        // 使用从响应头提取的真实token数据进行计费
-                        processTokenUsage(
-                          parsed.data.usage,
-                          parsed.conversation_id,
-                          parsed.message_id || `server_extracted_${Date.now()}`,
-                          extractModelFromResponse(parsed, 'server_headers') || 'dify-chatflow'
-                        ).then(result => {
-                          if (result.success) {
-                            console.log('[Token] ✅ Successfully processed server-extracted token usage:', result.newBalance);
-                          } else {
-                            console.warn('[Token] ❌ Failed to process server-extracted token usage:', result.error);
-                          }
-                        }).catch(error => {
-                          console.error('[Token] ❌ Error processing server-extracted token usage:', error);
-                        });
-                      } catch (tokenError) {
-                        console.error('[Token] ❌ Error preparing server-extracted token usage:', tokenError);
-                      }
+                      // 🔧 修复：后端已处理计费，前端不重复处理
+                      console.log('[Token] Server-extracted usage data received (already processed by backend):', parsed.data.usage);
                     } else {
                       console.log('[Token] ℹ️ Server-extracted token usage already processed or no usage data available');
                     }
@@ -2117,7 +2074,8 @@ export function DifyChatInterface({
                     if (parsed.data && parsed.data.outputs && parsed.data.outputs.answer) {
                       console.log('[Chat Debug] Workflow finished with answer:', parsed.data.outputs.answer.length, 'chars');
                       finalResponse = parsed.data.outputs.answer; // ChatFlow的答案在data.outputs.answer中
-                      messageEndReceived = true; // 标记消息完成
+                      // ⚠️ 不要在这里设置messageEndReceived = true，因为后续还有message_end事件包含真实token usage
+                      // messageEndReceived = true; // 标记消息完成
                       
                       // 🎯 修复：如果workflow_finished包含usage数据，立即处理token计费
                       // 这确保最后节点的积分扣除不会被遗漏
