@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>修复用户会话</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+    .section { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    button { padding: 10px 20px; margin: 10px 5px; font-size: 16px; cursor: pointer; }
+    .danger { background: #ff4444; color: white; border: none; }
+    .success { background: #44ff44; color: black; border: none; }
+    pre { background: #f0f0f0; padding: 10px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔧 修复用户会话工具</h1>
+  
+  <div class="section">
+    <h2>问题诊断</h2>
+    <div id="diagnosis"></div>
+  </div>
+  
+  <div class="section">
+    <h2>修复操作</h2>
+    <button class="danger" onclick="clearAll()">清除所有缓存并重新登录</button>
+    <button class="success" onclick="checkStatus()">检查当前状态</button>
+  </div>
+  
+  <div class="section">
+    <h2>操作结果</h2>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function checkStatus() {
+      const currentUser = localStorage.getItem('currentUser');
+      const difyUserId = localStorage.getItem('dify_user_id');
+      
+      let diagnosis = '<h3>当前状态：</h3>';
+      
+      if (currentUser) {
+        try {
+          const user = JSON.parse(currentUser);
+          diagnosis += `<p><strong>用户ID:</strong> ${user.id}</p>`;
+          diagnosis += `<p><strong>Email:</strong> ${user.email}</p>`;
+          diagnosis += `<p><strong>余额:</strong> ${user.balance} 积分</p>`;
+          
+          // 检查UUID格式
+          const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
+          
+          if (!isValidUUID) {
+            diagnosis += '<p style="color: red;"><strong>❌ 问题：用户ID不是有效的UUID格式！</strong></p>';
+            diagnosis += '<p>这会导致数据库查询失败，积分无法扣除。</p>';
+            diagnosis += '<p><strong>建议：点击"清除所有缓存并重新登录"</strong></p>';
+          } else {
+            diagnosis += '<p style="color: green;"><strong>✅ 用户ID格式正确</strong></p>';
+          }
+        } catch (e) {
+          diagnosis += '<p style="color: red;">解析用户数据失败</p>';
+        }
+      } else {
+        diagnosis += '<p style="color: red;">未找到用户数据</p>';
+      }
+      
+      diagnosis += `<p><strong>Dify User ID:</strong> ${difyUserId || '未设置'}</p>`;
+      
+      document.getElementById('diagnosis').innerHTML = diagnosis;
+    }
+    
+    function clearAll() {
+      if (!confirm('确定要清除所有缓存并重新登录吗？这会清除本地对话历史。')) {
+        return;
+      }
+      
+      // 清除所有localStorage
+      localStorage.clear();
+      
+      // 清除所有sessionStorage
+      sessionStorage.clear();
+      
+      // 清除所有cookies
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
+      
+      document.getElementById('result').innerHTML = `
+        <p style="color: green; font-size: 18px;"><strong>✅ 已清除所有缓存</strong></p>
+        <p>正在跳转到登录页面...</p>
+      `;
+      
+      // 跳转到登录页面
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+    }
+    
+    // 页面加载时自动检查
+    window.onload = checkStatus;
+  </script>
+</body>
+</html>

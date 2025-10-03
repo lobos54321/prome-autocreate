@@ -1,0 +1,826 @@
+{
+  "testInfo": {
+    "timestamp": "2025-10-01T23:58:34.371Z",
+    "userId": "9dee4891-89a6-44ee-8fe8-69097846e97d",
+    "message": "你好，这是一个测试消息，请简短回复。"
+  },
+  "events": [
+    {
+      "event": "node_started",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "46f85516-4be4-47de-9703-d376ea0c246c",
+        "node_id": "1738052599424",
+        "node_type": "start",
+        "title": "开始",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": null,
+        "inputs_truncated": false,
+        "created_at": 1759363111,
+        "extras": {},
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null,
+        "parallel_run_id": null,
+        "agent_strategy": null
+      }
+    },
+    {
+      "event": "node_started",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "c36fbb07-916f-4c02-b739-7b5bc1d8014f",
+        "node_id": "1738168561064",
+        "node_type": "document-extractor",
+        "title": "文档提取器",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": null,
+        "inputs_truncated": false,
+        "created_at": 1759363111,
+        "extras": {},
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null,
+        "parallel_run_id": null,
+        "agent_strategy": null
+      }
+    },
+    {
+      "event": "node_finished",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "c36fbb07-916f-4c02-b739-7b5bc1d8014f",
+        "node_id": "1738168561064",
+        "node_type": "document-extractor",
+        "title": "文档提取器",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": {
+          "variable_selector": [
+            "sys",
+            "files"
+          ]
+        },
+        "inputs_truncated": false,
+        "process_data": {
+          "documents": []
+        },
+        "process_data_truncated": false,
+        "outputs": {
+          "text": []
+        },
+        "outputs_truncated": false,
+        "status": "succeeded",
+        "error": null,
+        "elapsed_time": 0.164983,
+        "execution_metadata": {},
+        "created_at": 1759363111,
+        "finished_at": 1759363111,
+        "files": [],
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null
+      }
+    },
+    {
+      "event": "node_started",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "80f3dd62-dc3c-4c01-8760-02439eb1c647",
+        "node_id": "1754655521595",
+        "node_type": "if-else",
+        "title": "条件分支 4",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": null,
+        "inputs_truncated": false,
+        "created_at": 1759363111,
+        "extras": {},
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null,
+        "parallel_run_id": null,
+        "agent_strategy": null
+      }
+    },
+    {
+      "event": "node_finished",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "80f3dd62-dc3c-4c01-8760-02439eb1c647",
+        "node_id": "1754655521595",
+        "node_type": "if-else",
+        "title": "条件分支 4",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": {
+          "conditions": [
+            {
+              "actual_value": 0,
+              "expected_value": "4",
+              "comparison_operator": "≥"
+            }
+          ]
+        },
+        "inputs_truncated": false,
+        "process_data": {
+          "condition_results": [
+            {
+              "group": {
+                "case_id": "true",
+                "logical_operator": "and",
+                "conditions": [
+                  {
+                    "variable_selector": [
+                      "conversation",
+                      "conversation_info_completeness"
+                    ],
+                    "comparison_operator": "≥",
+                    "value": "4",
+                    "sub_variable_condition": null
+                  }
+                ]
+              },
+              "results": [
+                false
+              ],
+              "final_result": false
+            }
+          ]
+        },
+        "process_data_truncated": false,
+        "outputs": {
+          "result": false,
+          "selected_case_id": "false"
+        },
+        "outputs_truncated": false,
+        "status": "succeeded",
+        "error": null,
+        "elapsed_time": 0.20355,
+        "execution_metadata": {},
+        "created_at": 1759363111,
+        "finished_at": 1759363111,
+        "files": [],
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null
+      }
+    },
+    {
+      "event": "node_started",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "fc4f2c95-d2bf-4cd0-97f0-44bf91c1bcfd",
+        "node_id": "1754637575709",
+        "node_type": "llm",
+        "title": "LLM 18",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": null,
+        "inputs_truncated": false,
+        "created_at": 1759363111,
+        "extras": {},
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null,
+        "parallel_run_id": null,
+        "agent_strategy": null
+      }
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "COM",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "PLE",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "TEN",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "ESS",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": ":",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": " ",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "0",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "  \n",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "您好",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "，请",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "介绍",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "您的",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "产品",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "详情",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "（",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "是什么",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "产品",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "，",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "如何",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "解决",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "问题",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "）。",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "message",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "answer": "",
+      "from_variable_selector": [
+        "1754637575709",
+        "text"
+      ]
+    },
+    {
+      "event": "node_started",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "f019adfd-85eb-46c4-b31b-8d9c35fab1e4",
+        "node_id": "1754656653869",
+        "node_type": "parameter-extractor",
+        "title": "参数提取器",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": null,
+        "inputs_truncated": false,
+        "created_at": 1759363113,
+        "extras": {},
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null,
+        "parallel_run_id": null,
+        "agent_strategy": null
+      }
+    },
+    {
+      "event": "node_started",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "70344ed7-06e3-4675-83f8-c9e1b7630fd8",
+        "node_id": "1754637687305",
+        "node_type": "answer",
+        "title": "直接回复 6",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": null,
+        "inputs_truncated": false,
+        "created_at": 1759363113,
+        "extras": {},
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null,
+        "parallel_run_id": null,
+        "agent_strategy": null
+      }
+    },
+    {
+      "event": "node_finished",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "70344ed7-06e3-4675-83f8-c9e1b7630fd8",
+        "node_id": "1754637687305",
+        "node_type": "answer",
+        "title": "直接回复 6",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": {},
+        "inputs_truncated": false,
+        "process_data": {},
+        "process_data_truncated": false,
+        "outputs": {
+          "answer": "COMPLETENESS: 0  \n您好，请介绍您的产品详情（是什么产品，如何解决问题）。",
+          "files": []
+        },
+        "outputs_truncated": false,
+        "status": "succeeded",
+        "error": null,
+        "elapsed_time": 0.109778,
+        "execution_metadata": {},
+        "created_at": 1759363113,
+        "finished_at": 1759363113,
+        "files": [],
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null
+      }
+    },
+    {
+      "event": "node_started",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "24713be2-2f11-4db6-93d1-94be3e25021a",
+        "node_id": "1754657008341",
+        "node_type": "assigner",
+        "title": "变量赋值 6",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": null,
+        "inputs_truncated": false,
+        "created_at": 1759363114,
+        "extras": {},
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null,
+        "parallel_run_id": null,
+        "agent_strategy": null
+      }
+    },
+    {
+      "event": "node_finished",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "24713be2-2f11-4db6-93d1-94be3e25021a",
+        "node_id": "1754657008341",
+        "node_type": "assigner",
+        "title": "变量赋值 6",
+        "index": 1,
+        "predecessor_node_id": null,
+        "inputs": {
+          "title": "变量赋值 6",
+          "desc": "",
+          "version": "2",
+          "error_strategy": null,
+          "default_value": null,
+          "retry_config": {
+            "max_retries": 0,
+            "retry_interval": 0,
+            "retry_enabled": false
+          },
+          "items": [
+            {
+              "variable_selector": [
+                "conversation",
+                "conversation_info_completeness"
+              ],
+              "input_type": "variable",
+              "operation": "over-write",
+              "value": [
+                "1754656653869",
+                "v"
+              ]
+            }
+          ]
+        },
+        "inputs_truncated": false,
+        "process_data": {
+          "conversation_info_completeness": 0,
+          "__updated_variables": [
+            {
+              "name": "conversation_info_completeness",
+              "selector": [
+                "conversation",
+                "conversation_info_completeness"
+              ],
+              "value_type": "integer",
+              "new_value": 0
+            }
+          ]
+        },
+        "process_data_truncated": false,
+        "outputs": {},
+        "outputs_truncated": false,
+        "status": "succeeded",
+        "error": null,
+        "elapsed_time": 0.072258,
+        "execution_metadata": {},
+        "created_at": 1759363114,
+        "finished_at": 1759363114,
+        "files": [],
+        "parallel_id": null,
+        "parallel_start_node_id": null,
+        "parent_parallel_id": null,
+        "parent_parallel_start_node_id": null,
+        "iteration_id": null,
+        "loop_id": null
+      }
+    },
+    {
+      "event": "workflow_finished",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "workflow_run_id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+      "data": {
+        "id": "d2891160-a702-4cb1-9a18-65df5a76a603",
+        "workflow_id": "8603d6c8-bfce-4c7e-83c7-1245816f8157",
+        "status": "succeeded",
+        "outputs": {
+          "answer": "COMPLETENESS: 0  \n您好，请介绍您的产品详情（是什么产品，如何解决问题）。",
+          "files": []
+        },
+        "error": "",
+        "elapsed_time": 3.511856,
+        "total_tokens": 0,
+        "total_steps": 0,
+        "created_by": {
+          "id": "03cd9f94-45cb-4207-8573-4987c0e161ba",
+          "user": "9dee4891-89a6-44ee-8fe8-69097846e97d"
+        },
+        "created_at": 1759363110,
+        "finished_at": 1759363114,
+        "exceptions_count": 0,
+        "files": []
+      }
+    },
+    {
+      "event": "message_end",
+      "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+      "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "created_at": 1759363111,
+      "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+      "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+      "metadata": {
+        "annotation_reply": null,
+        "retriever_resources": [],
+        "usage": {
+          "prompt_tokens": 0,
+          "prompt_unit_price": "0.0",
+          "prompt_price_unit": "0.0",
+          "prompt_price": "0.0",
+          "completion_tokens": 0,
+          "completion_unit_price": "0.0",
+          "completion_price_unit": "0.0",
+          "completion_price": "0.0",
+          "total_tokens": 0,
+          "total_price": "0.0",
+          "currency": "USD",
+          "latency": 0
+        }
+      },
+      "files": []
+    }
+  ],
+  "messageEndData": {
+    "event": "message_end",
+    "conversation_id": "018bd5f9-7eb2-4380-9e3a-2e766d6bf646",
+    "message_id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+    "created_at": 1759363111,
+    "task_id": "92c2cd03-2160-4834-9cfd-80cd7a9f554c",
+    "id": "3cbac4f6-ae4c-4966-8081-16989980715f",
+    "metadata": {
+      "annotation_reply": null,
+      "retriever_resources": [],
+      "usage": {
+        "prompt_tokens": 0,
+        "prompt_unit_price": "0.0",
+        "prompt_price_unit": "0.0",
+        "prompt_price": "0.0",
+        "completion_tokens": 0,
+        "completion_unit_price": "0.0",
+        "completion_price_unit": "0.0",
+        "completion_price": "0.0",
+        "total_tokens": 0,
+        "total_price": "0.0",
+        "currency": "USD",
+        "latency": 0
+      }
+    },
+    "files": []
+  },
+  "fullAnswer": "COMPLETENESS: 0  \n您好，请介绍您的产品详情（是什么产品，如何解决问题）。"
+}

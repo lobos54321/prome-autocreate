@@ -4,7 +4,7 @@
  * Input field for sending messages with send button and keyboard shortcuts.
  */
 
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, KeyboardEvent, useCallback, useMemo, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,7 +21,7 @@ interface ChatInputProps {
   maxLength?: number;
 }
 
-export const ChatInput = ({ 
+export const ChatInput = memo(({ 
   onSendMessage, 
   disabled = false,
   isLoading = false,
@@ -33,33 +33,48 @@ export const ChatInput = ({
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSend = () => {
+  // 🔧 优化：使用useCallback防止不必要的重渲染
+  const handleSend = useCallback(() => {
     const trimmedMessage = message.trim();
     if (trimmedMessage && !disabled && !isLoading) {
-      onSendMessage(trimmedMessage);
+      // 🚀 立即清空输入框提供快速反馈
       setMessage('');
-      // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+      // 然后发送消息
+      onSendMessage(trimmedMessage);
     }
-  };
+  }, [message, disabled, isLoading, onSendMessage]);
 
-  const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  // 🔧 优化：使用useCallback防止重复创建函数
+  const handleKeyPress = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  };
+  }, [handleSend]);
 
-  const handleInputChange = (value: string) => {
+  // 🔧 优化：使用useCallback优化输入处理
+  const handleInputChange = useCallback((value: string) => {
     if (value.length <= maxLength) {
       setMessage(value);
     }
-  };
+  }, [maxLength]);
 
-  const isDisabled = disabled || isLoading;
-  const canSend = message.trim().length > 0 && !isDisabled;
+  // 🔧 优化：自动调整高度的处理函数
+  const handleTextareaResize = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = 'auto';
+    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+  }, []);
+
+  // 🔧 使用useMemo缓存计算值
+  const { isDisabled, canSend, characterCount } = useMemo(() => ({
+    isDisabled: disabled || isLoading,
+    canSend: message.trim().length > 0 && !disabled && !isLoading,
+    characterCount: message.length
+  }), [message, disabled, isLoading]);
 
   return (
     <Card className={cn("border-t", className)}>
@@ -87,6 +102,7 @@ export const ChatInput = ({
               className={cn(
                 "min-h-[40px] max-h-[120px] resize-none",
                 "focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "transition-all duration-150", // 🔧 添加平滑过渡
                 isDisabled && "opacity-50 cursor-not-allowed"
               )}
               rows={1}
@@ -94,16 +110,15 @@ export const ChatInput = ({
                 height: 'auto',
                 minHeight: '40px'
               }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-              }}
+              onInput={handleTextareaResize}
             />
             
             {/* Character Count */}
-            <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-              {message.length}/{maxLength}
+            <div className={cn(
+              "absolute bottom-2 right-2 text-xs transition-colors duration-150",
+              characterCount > maxLength * 0.9 ? "text-red-500" : "text-gray-400"
+            )}>
+              {characterCount}/{maxLength}
             </div>
           </div>
 
@@ -114,8 +129,9 @@ export const ChatInput = ({
             size="sm"
             className={cn(
               "h-10 px-3 min-w-[40px]",
+              "transition-all duration-150 transform active:scale-95", // 🔧 添加按压动画
               canSend 
-                ? "bg-blue-600 hover:bg-blue-700 text-white" 
+                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow" 
                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
             )}
           >
@@ -137,4 +153,6 @@ export const ChatInput = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+ChatInput.displayName = 'ChatInput';

@@ -3,8 +3,9 @@
  * 使用Supabase数据库存储和同步聊天历史
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { generateUUID } from './utils';
+import { supabase } from './supabase';
 
 // 数据库表的TypeScript类型定义
 export interface ChatDevice {
@@ -49,15 +50,12 @@ class CloudChatHistoryService {
   private deviceId: string;
 
   constructor() {
-    // 初始化Supabase客户端
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase configuration is missing');
+    // 🔧 修复：使用共享的Supabase实例，避免多实例警告
+    if (!supabase) {
+      throw new Error('Supabase not configured or available');
     }
 
-    this.supabase = createClient(supabaseUrl, supabaseAnonKey);
+    this.supabase = supabase;
     this.deviceId = this.getOrCreateDeviceId();
   }
 
@@ -302,28 +300,63 @@ class CloudChatHistoryService {
   }
 
   /**
-   * 获取所有对话列表
+   * 获取对话列表（支持分页和懒加载）
    */
-  async getConversations(): Promise<ChatConversation[]> {
+  async getConversations(
+    page: number = 0,
+    limit: number = 20,
+    loadMessages: boolean = false
+  ): Promise<{ conversations: ChatConversation[]; total: number; hasMore: boolean }> {
     await this.setCurrentDeviceId();
     
+    const offset = page * limit;
+    
+    // 先获取总数
+    const { count } = await this.supabase
+      .from('chat_conversations')
+      .select('id', { count: 'exact', head: true })
+      .eq('device_id', this.deviceId);
+    
+    const total = count || 0;
+    
+    // 获取分页数据
     const { data, error } = await this.supabase
       .from('chat_conversations')
       .select('*')
       .eq('device_id', this.deviceId)
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       throw new Error(`Failed to fetch conversations: ${error.message}`);
     }
 
-    return data || [];
+    const conversations = data || [];
+    const hasMore = offset + conversations.length < total;
+    
+    return {
+      conversations,
+      total,
+      hasMore
+    };
   }
 
   /**
-   * 获取特定对话及其消息
+   * 获取所有对话列表（保持向后兼容）
    */
-  async getConversationWithMessages(conversationId: string): Promise<ConversationWithMessages | null> {
+  async getAllConversations(): Promise<ChatConversation[]> {
+    const result = await this.getConversations(0, 1000, false);
+    return result.conversations;
+  }
+
+  /**
+   * 获取特定对话及其消息（支持分页加载）
+   */
+  async getConversationWithMessages(
+    conversationId: string, 
+    messageLimit?: number,
+    messageOffset?: number
+  ): Promise<ConversationWithMessages | null> {
     await this.setCurrentDeviceId();
     
     // 获取对话信息
@@ -339,12 +372,20 @@ class CloudChatHistoryService {
       return null;
     }
 
-    // 获取消息
-    const { data: messages, error: messagesError } = await this.supabase
+    // 获取消息 - 支持分页
+    let messagesQuery = this.supabase
       .from('chat_messages')
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
+    
+    // 如果指定了限制和偏移量，则应用分页
+    if (messageLimit !== undefined) {
+      const offset = messageOffset || 0;
+      messagesQuery = messagesQuery.range(offset, offset + messageLimit - 1);
+    }
+
+    const { data: messages, error: messagesError } = await messagesQuery;
 
     if (messagesError) {
       console.warn('Failed to fetch messages:', messagesError.message);
@@ -355,6 +396,27 @@ class CloudChatHistoryService {
       ...conversation,
       messages: messages || []
     };
+  }
+
+  /**
+   * 获取对话的最新消息（用于预览）
+   */
+  async getConversationPreview(conversationId: string, messageCount: number = 5): Promise<ChatMessage[]> {
+    await this.setCurrentDeviceId();
+    
+    const { data: messages, error } = await this.supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(messageCount);
+
+    if (error) {
+      console.warn('Failed to fetch message preview:', error.message);
+      return [];
+    }
+
+    return (messages || []).reverse(); // 按时间正序返回
   }
 
   /**

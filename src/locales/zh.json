@@ -281,7 +281,8 @@
     "deep_copywriting": "深度文案创作",
     "automated_video": "自动化视频创作",
     "deep_copywriting_desc": "AI驱动的营销内容生成，具有高级工作流",
-    "automated_video_desc": "自动化视频内容创作和编辑解决方案",
+    "automated_video_desc": "让你的产品自己开口说话 自动生成真人语音视频，适用于电商、内容创作、品牌营销",
+    "video_demo_label": "AI 生成真人用户反馈视频演示",
     "start_creating": "开始创作",
     "login_to_use": "登录使用"
   },
@@ -426,6 +427,19 @@
     "validation_description_min": "产品描述至少需要10个字符",
     "validation_image_required": "请输入产品图片URL",
     "validation_image_invalid": "请输入有效的图片URL（必须以.jpg、.jpeg、.png或.webp结尾）",
-    "validation_gender_required": "请选择人物性别"
+    "validation_gender_required": "请选择人物性别",
+    "validation_language_required": "请选择视频语言",
+    "language": "视频语言",
+    "language_placeholder": "选择视频语言",
+    "language_hint": "Veo 3 Fast 支持多种语言生成，选择最适合您产品的语言",
+    "seconds": "秒",
+    "credits_unit": "积分",
+    "duration_hint": "费用包含：Google Veo 3 Fast + Nano Banana + 视频合并费。视频成功生成后扣除积分。",
+    "credits_balance": "当前积分余额",
+    "insufficient_credits_warning": "积分不足，无法生成此时长视频",
+    "preview_request_title": "视频创作请求",
+    "required_credits": "所需积分",
+    "product_image": "产品图片",
+    "preview_footer": "请根据以上信息创建视频内容。"
   }
 }

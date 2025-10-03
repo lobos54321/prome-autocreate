@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DollarSign, InfoIcon, Loader2, Save, Calculator, Sparkles, Activity, CreditCard, Settings } from 'lucide-react';
-import { isDifyEnabled } from '@/api/dify-api';
+import { isDifyEnabled } from '@/lib/dify-api-client';
 import { authService } from '@/lib/auth';
 import { db } from '@/lib/supabase';
 import { toast } from 'sonner';

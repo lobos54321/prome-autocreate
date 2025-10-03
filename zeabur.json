@@ -16,7 +16,10 @@
         "VITE_DIFY_API_URL": "https://api.dify.ai/v1",
         "VITE_DIFY_APP_ID": "420861a3-3ef0-4ead-9bb7-0c4337d4229a",
         "VITE_DIFY_API_KEY": "app-IjKktE91BQKi8J1lex4aFkbg",
-        "VITE_DIFY_TIMEOUT_MS": "120000"
+        "VITE_DIFY_TIMEOUT_MS": "120000",
+        "VITE_DIFY_WORKFLOW_TIMEOUT_MS": "300000",
+        "VITE_DIFY_STREAMING_TIMEOUT_MS": "240000",
+        "VITE_DIFY_MAX_RETRIES": "3"
       }
     }
   ]

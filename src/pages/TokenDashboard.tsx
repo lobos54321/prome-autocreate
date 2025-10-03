@@ -11,10 +11,8 @@ import { isDifyEnabled } from '@/lib/dify-api-client';
 import { db } from '@/lib/supabase';
 import { User, TokenUsage, BillingRecord } from '@/types';
 import { toast } from 'sonner';
-import { useTranslation } from 'react-i18next';
 
 export default function TokenDashboard() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +50,23 @@ export default function TokenDashboard() {
     };
   }, [navigate]);
 
+  // 🔧 修复：监听余额和token使用更新事件，实时刷新数据
+  useEffect(() => {
+    if (!user || !user.id) return;
+
+    const handleBalanceUpdate = () => {
+      console.log('[TokenDashboard] Balance updated, refreshing token usage data...');
+      loadUserData(user.id);
+    };
+
+    // 监听余额更新事件
+    window.addEventListener('balance-updated', handleBalanceUpdate);
+
+    return () => {
+      window.removeEventListener('balance-updated', handleBalanceUpdate);
+    };
+  }, [user]);
+
   const loadUserData = async (userId: string) => {
     try {
       setIsDataLoading(true);
@@ -64,7 +79,7 @@ export default function TokenDashboard() {
       setBillingRecords(billing);
     } catch (error) {
       console.error('Failed to load user data:', error);
-      toast.error(t('token_dashboard.data_loading_failed'));
+      toast.error('加载数据失败');
     } finally {
       setIsDataLoading(false);
     }
@@ -116,7 +131,7 @@ export default function TokenDashboard() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">{t('token_dashboard.loading')}</p>
+            <p className="text-gray-600">加载Token仪表板...</p>
           </div>
         </div>
       </div>
@@ -131,34 +146,34 @@ export default function TokenDashboard() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">{t('token_dashboard.title')}</h1>
-          <p className="text-gray-600">{t('token_dashboard.subtitle')}</p>
+          <h1 className="text-3xl font-bold">Token 仪表板</h1>
+          <p className="text-gray-600">Token使用情况和统计</p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <InfoIcon className="h-5 w-5" />
-              {t('token_dashboard.unavailable')}
+              Token 仪表板不可用
             </CardTitle>
             <CardDescription>
-              {t('token_dashboard.integration_disabled')}
+              ProMe集成功能已禁用，无法显示Token使用统计
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
               <InfoIcon className="h-4 w-4" />
               <AlertDescription>
-                {t('token_dashboard.enable_instruction')}
+                要启用Token仪表板，请在环境变量中设置 VITE_ENABLE_DIFY_INTEGRATION=true
               </AlertDescription>
             </Alert>
             
             <div className="mt-6 flex gap-4">
               <Button onClick={() => navigate('/dashboard')}>
-                {t('token_dashboard.back_to_dashboard')}
+                返回主仪表板
               </Button>
               <Button variant="outline" onClick={() => navigate('/admin')}>
-                {t('token_dashboard.manage_settings')}
+                管理设置
               </Button>
             </div>
           </CardContent>
@@ -170,26 +185,26 @@ export default function TokenDashboard() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">{t('token_dashboard.title')}</h1>
-        <p className="text-gray-600">{t('token_dashboard.subtitle_detailed')}</p>
+        <h1 className="text-3xl font-bold">Token 仪表板</h1>
+        <p className="text-gray-600">查看您的Token使用情况和积分统计</p>
       </div>
 
       {/* Balance and Status */}
       <div className="grid gap-6 md:grid-cols-5 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('token_dashboard.current_balance')}</CardTitle>
+            <CardTitle className="text-sm font-medium">当前余额</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{user?.balance || 0}</div>
-            <p className="text-xs text-muted-foreground">{t('token_dashboard.credits')}</p>
+            <p className="text-xs text-muted-foreground">积分</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('token_dashboard.today_consumed')}</CardTitle>
+            <CardTitle className="text-sm font-medium">今日消费</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -202,7 +217,7 @@ export default function TokenDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('token_dashboard.monthly_consumed')}</CardTitle>
+            <CardTitle className="text-sm font-medium">本月消费</CardTitle>
             <BarChart2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -215,7 +230,7 @@ export default function TokenDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('token_dashboard.average_per_call')}</CardTitle>
+            <CardTitle className="text-sm font-medium">平均每次调用</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -228,14 +243,14 @@ export default function TokenDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('token_dashboard.monthly_credits_consumed')}</CardTitle>
+            <CardTitle className="text-sm font-medium">本月积分消费</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {isDataLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : Math.round(stats.monthlyCost)}
             </div>
-            <p className="text-xs text-muted-foreground">{t('token_dashboard.credits')}</p>
+            <p className="text-xs text-muted-foreground">积分</p>
           </CardContent>
         </Card>
       </div>
@@ -244,23 +259,23 @@ export default function TokenDashboard() {
       <div className="grid gap-6 mb-8">
         <Card>
           <CardHeader>
-            <CardTitle>{t('token_dashboard.usage_statistics')}</CardTitle>
+            <CardTitle>使用统计</CardTitle>
             <CardDescription>
-              {t('token_dashboard.token_consumption_overview')}
+              Token消费概览
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>{t('token_dashboard.total_calls')}</span>
+                <span>总调用次数</span>
                 <span className="font-medium">{stats.usageCount}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>{t('token_dashboard.total_token_consumption')}</span>
+                <span>总Token消费</span>
                 <span className="font-medium">{stats.totalTokens.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>{t('token_dashboard.total_credits_consumption')}</span>
+                <span>总积分消费</span>
                 <span className="font-medium">{Math.round(stats.totalCost)}</span>
               </div>
             </div>
@@ -274,10 +289,10 @@ export default function TokenDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            {t('token_dashboard.recent_usage_records')}
+            最近使用记录
           </CardTitle>
           <CardDescription>
-            {t('token_dashboard.latest_token_consumption')}
+            最新的Token消费记录
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -287,8 +302,8 @@ export default function TokenDashboard() {
             </div>
           ) : tokenUsage.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p>{t('token_dashboard.no_usage_records')}</p>
-              <p className="text-sm">{t('token_dashboard.start_using_service_hint')}</p>
+              <p>暂无使用记录</p>
+              <p className="text-sm">开始使用ProMe服务后将显示记录</p>
             </div>
           ) : (
             <div className="space-y-4 max-h-[400px] overflow-y-auto">
@@ -306,7 +321,7 @@ export default function TokenDashboard() {
                   </div>
                   <div className="text-right">
                     <div className="font-medium">{usage.tokensUsed?.toLocaleString() || 0} tokens</div>
-                    <div className="text-sm text-gray-500">{Math.round(usage.cost || 0)} {t('token_dashboard.credits')}</div>
+                    <div className="text-sm text-gray-500">{Math.round(usage.cost || 0)} 积分</div>
                   </div>
                 </div>
               ))}
@@ -317,10 +332,10 @@ export default function TokenDashboard() {
 
       <div className="mt-6 flex gap-4">
         <Button onClick={() => navigate('/dashboard')}>
-          {t('token_dashboard.back_to_dashboard')}
+          返回主仪表板
         </Button>
         <Button variant="outline" onClick={() => navigate('/pricing')}>
-          {t('token_dashboard.recharge_credits')}
+          充值积分
         </Button>
       </div>
     </div>

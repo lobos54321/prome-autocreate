@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { InfoIcon, AlertTriangle } from 'lucide-react';
-import { isDifyEnabled } from '@/api/dify-api';
+import { isDifyEnabled } from '@/lib/dify-api-client';
 
 interface BalanceProtectionProps {
   modelName: string;

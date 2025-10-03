@@ -10,11 +10,12 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { Menu, X, User, Settings, LogOut, CreditCard, Activity, Coins, Shield, MessageSquare } from 'lucide-react';
+import { Menu, X, User, Settings, LogOut, CreditCard, Activity, Coins, Shield, MessageSquare, Video } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { isAdmin } from '@/lib/admin';
 import { User as UserType } from '@/types';
 import PointsDisplay from '@/components/ui/PointsDisplay';
+import { DifyMonitorStatus } from '@/components/DifyMonitorStatus';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 
@@ -86,26 +87,25 @@ export function Navbar() {
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
+        {/* Desktop Navigation - ProMe | Pricing | Dashboard | Prome AI | English | 100 points | login/sign up */}
         <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/pricing" className="text-gray-600 hover:text-gray-900">{t('nav.pricing')}</Link>
+          <Link to="/pricing" className="text-gray-600 hover:text-gray-900">{t('nav.pricing', 'Pricing')}</Link>
           {user && (
             <>
-              <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">{t('nav.dashboard')}</Link>
-              <Link to="/chat/dify" className="text-gray-600 hover:text-gray-900">Prome AI</Link>
+              <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">{t('nav.dashboard', 'Dashboard')}</Link>
+              <Link to="/chat/dify" className="text-gray-600 hover:text-gray-900">Deep-Copywriting</Link>
+              <Link to="/chat/n8n" className="text-gray-600 hover:text-gray-900">Auto-Video</Link>
             </>
           )}
-          {user && isAdmin(user) && (
-            <Link to="/admin" className="text-blue-600 hover:text-blue-900 font-medium">{t('nav.admin')}</Link>
-          )}
-        </nav>
-
-        {/* User Menu or Auth Buttons */}
-        <div className="hidden md:flex items-center space-x-4">
+          
+          {/* Language Switcher */}
           <LanguageSwitcher />
-          {user && (
+          
+          {/* Points Display and Auth */}
+          {user && user.balance && user.balance > 0 && (
             <PointsDisplay className="border-0 shadow-none bg-gray-50" showDetails={false} />
           )}
+          
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -117,51 +117,55 @@ export function Navbar() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{t('auth.profile')}</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('nav.myAccount', 'My Account')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                   <User className="mr-2 h-4 w-4" />
-                  {t('nav.dashboard')}
+                  {t('nav.dashboard', 'Dashboard')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/chat/dify')}>
                   <MessageSquare className="mr-2 h-4 w-4" />
-                  Prome AI
+                  Deep-Copywriting
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/chat/n8n')}>
+                  <Video className="mr-2 h-4 w-4" />
+                  Auto-Video
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/token-dashboard')}>
                   <Activity className="mr-2 h-4 w-4" />
-                  {t('billing.token_usage')}
+                  {t('nav.usage', 'Usage')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
-                  {t('nav.settings')}
+                  {t('nav.settings', 'Settings')}
                 </DropdownMenuItem>
                 {isAdmin(user) && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate('/admin')}>
                       <Shield className="mr-2 h-4 w-4" />
-                      {t('nav.admin')}
+                      {t('nav.admin', 'Admin')}
                     </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  {t('nav.logout')}
+                  {t('nav.logout', 'Logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <div className="flex space-x-2">
               <Button variant="ghost" onClick={() => navigate('/login')}>
-                {t('nav.login')}
+                {t('nav.login', 'Login')}
               </Button>
               <Button onClick={() => navigate('/register')}>
-                {t('nav.register')}
+                {t('nav.signUp', 'Sign Up')}
               </Button>
             </div>
           )}
-        </div>
+        </nav>
 
         {/* Mobile menu button */}
         <div className="md:hidden">
@@ -183,7 +187,7 @@ export function Navbar() {
               className="block py-2 text-gray-600 hover:text-gray-900"
               onClick={() => setIsOpen(false)}
             >
-              {t('nav.pricing')}
+              {t('nav.pricing', 'Pricing')}
             </Link>
             {user ? (
               <>
@@ -192,28 +196,35 @@ export function Navbar() {
                   className="block py-2 text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  {t('nav.dashboard')}
+                  {t('nav.dashboard', 'Dashboard')}
                 </Link>
                 <Link 
                   to="/chat/dify" 
                   className="block py-2 text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  Prome AI
+                  Deep-Copywriting
+                </Link>
+                <Link 
+                  to="/chat/n8n" 
+                  className="block py-2 text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Auto-Video
                 </Link>
                 <Link 
                   to="/token-dashboard" 
                   className="block py-2 text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  {t('billing.token_usage')}
+                  {t('nav.usage', 'Usage')}
                 </Link>
                 <Link 
                   to="/settings" 
                   className="block py-2 text-gray-600 hover:text-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
-                  {t('nav.settings')}
+                  {t('nav.settings', 'Settings')}
                 </Link>
                 {isAdmin(user) && (
                   <Link 
@@ -221,9 +232,20 @@ export function Navbar() {
                     className="block py-2 text-blue-600 hover:text-blue-900 font-medium"
                     onClick={() => setIsOpen(false)}
                   >
-                    {t('nav.admin')}
+                    {t('nav.admin', 'Admin')}
                   </Link>
                 )}
+                <div className="py-2">
+                  <LanguageSwitcher />
+                </div>
+                {user.balance && user.balance > 0 && (
+                  <div className="py-2">
+                    <PointsDisplay className="border-0 shadow-none bg-gray-50" showDetails={false} />
+                  </div>
+                )}
+                <div className="py-2">
+                  <DifyMonitorStatus />
+                </div>
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start p-2"
@@ -233,11 +255,14 @@ export function Navbar() {
                   }}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  {t('nav.logout')}
+                  {t('nav.logout', 'Logout')}
                 </Button>
               </>
             ) : (
               <div className="space-y-2">
+                <div className="py-2">
+                  <LanguageSwitcher />
+                </div>
                 <Button 
                   variant="ghost" 
                   className="w-full"
@@ -246,7 +271,7 @@ export function Navbar() {
                     navigate('/login');
                   }}
                 >
-                  {t('nav.login')}
+                  {t('nav.login', 'Login')}
                 </Button>
                 <Button 
                   className="w-full"
@@ -255,7 +280,7 @@ export function Navbar() {
                     navigate('/register');
                   }}
                 >
-                  {t('nav.register')}
+                  {t('nav.signUp', 'Sign Up')}
                 </Button>
               </div>
             )}

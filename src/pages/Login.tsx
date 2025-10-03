@@ -8,9 +8,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { isAdmin } from '@/lib/admin';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -45,11 +47,11 @@ export default function Login() {
           navigate('/dashboard');
         }
       } else {
-        setError('登录失败，请检查邮箱和密码');
+        setError(t('errors.authentication_failed', 'Authentication failed'));
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('邮箱或密码错误，请重试');
+      setError(t('errors.authentication_failed', 'Authentication failed'));
     } finally {
       setIsLoading(false);
     }
@@ -59,9 +61,9 @@ export default function Login() {
     <div className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold">登录账号</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t('auth.login', 'Login')}</CardTitle>
           <CardDescription>
-            输入您的邮箱和密码登录
+            {t('auth.email', 'Email')} and {t('auth.password', 'Password')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -75,7 +77,7 @@ export default function Login() {
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
+              <Label htmlFor="email">{t('auth.email', 'Email')}</Label>
               <Input
                 id="email"
                 name="email"
@@ -89,9 +91,9 @@ export default function Login() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">密码</Label>
+                <Label htmlFor="password">{t('auth.password', 'Password')}</Label>
                 <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                  忘记密码?
+                  {t('auth.forgot_password', 'Forgot Password?')}
                 </Link>
               </div>
               <Input
@@ -106,15 +108,15 @@ export default function Login() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? '登录中...' : '登录'}
+              {isLoading ? `${t('auth.login', 'Login')}...` : t('auth.login', 'Login')}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-600">
-            还没有账号?{' '}
+            {t('auth.dont_have_account', "Don't have an account?")}{' '}
             <Link to="/register" className="text-blue-600 hover:underline">
-              立即注册
+              {t('auth.sign_up', 'Sign Up')}
             </Link>
           </p>
         </CardFooter>

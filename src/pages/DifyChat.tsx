@@ -36,6 +36,9 @@ export default function DifyChat() {
   const [user, setUser] = useState<User | null>(null);
   const [service, setService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 🚧 开发中遮罩开关 - 设置为 false 可显示完整界面
+  const showUnderDevelopmentOverlay = false;
 
   useEffect(() => {
     const loadUserAndService = async () => {
@@ -48,7 +51,7 @@ export default function DifyChat() {
         if (serviceId) {
           const serviceData = await servicesAPI.getService(serviceId);
           if (!serviceData) {
-            toast.error(t('errors.not_found'));
+            toast.error('服务不存在或已下线');
             navigate('/services');
             return;
           }
@@ -56,7 +59,7 @@ export default function DifyChat() {
         }
       } catch (error) {
         console.error('Failed to load user or service:', error);
-        toast.error(t('errors.network_error'));
+        toast.error('加载失败');
       } finally {
         setIsLoading(false);
       }
@@ -114,24 +117,24 @@ export default function DifyChat() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
-              {t('nav.chat')}
+              Deep-Copywriting
             </CardTitle>
             <CardDescription>
-              {t('features.native_api_description')}
+              直接调用ProMe API的原生聊天界面
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
               <Shield className="h-4 w-4" />
               <AlertDescription>
-Dify API not configured. Please contact administrator to set the following environment variables:
+                Dify API未配置。请联系管理员设置以下环境变量：
                 <ul className="mt-2 list-disc list-inside text-sm">
                   <li>VITE_DIFY_API_URL</li>
                   <li>VITE_DIFY_API_KEY</li>
                   <li>VITE_DIFY_APP_ID (仅聊天应用需要，工作流应用可选)</li>
                 </ul>
                 <div className="mt-2 text-xs text-gray-500">
-                  💡 Current system supports workflow mode, no APP_ID required
+                  💡 当前系统支持工作流模式，无需APP_ID即可使用
                 </div>
               </AlertDescription>
             </Alert>
@@ -154,7 +157,7 @@ Dify API not configured. Please contact administrator to set the following envir
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                {t('common.back')}
+                返回服务列表
               </Button>
             </div>
           )}
@@ -171,12 +174,12 @@ Dify API not configured. Please contact administrator to set the following envir
               </div>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              {service ? service.name : t('nav.chat')}
+              {service ? service.name : 'Deep-Copywriting'}
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               {service 
                 ? service.description 
-                : t('features.native_api_description')
+                : t('features.native_api_description', 'Direct Dify API calls, no iframe cross-origin restrictions, faster response')
               }
             </p>
           </div>
@@ -186,9 +189,9 @@ Dify API not configured. Please contact administrator to set the following envir
             <Card>
               <CardContent className="p-6 text-center">
                 <Zap className="h-10 w-10 text-yellow-500 mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">{t('features.native_api_integration')}</h3>
+                <h3 className="font-semibold mb-2">{t('features.native_api_integration', 'Native API Integration')}</h3>
                 <p className="text-sm text-gray-600">
-                  {t('features.native_api_description')}
+                  {t('features.native_api_description', 'Direct Dify API calls, no iframe cross-origin restrictions, faster response')}
                 </p>
               </CardContent>
             </Card>
@@ -196,9 +199,9 @@ Dify API not configured. Please contact administrator to set the following envir
             <Card>
               <CardContent className="p-6 text-center">
                 <Shield className="h-10 w-10 text-green-500 mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">{t('features.accurate_billing')}</h3>
+                <h3 className="font-semibold mb-2">精确计费</h3>
                 <p className="text-sm text-gray-600">
-                  {t('features.accurate_billing_description')}
+                  100%准确的Token使用监控，实时扣费无遗漏
                 </p>
               </CardContent>
             </Card>
@@ -206,9 +209,9 @@ Dify API not configured. Please contact administrator to set the following envir
             <Card>
               <CardContent className="p-6 text-center">
                 <TrendingUp className="h-10 w-10 text-blue-500 mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">{t('features.streaming_response')}</h3>
+                <h3 className="font-semibold mb-2">流式响应</h3>
                 <p className="text-sm text-gray-600">
-                  {t('features.streaming_response_description')}
+                  支持实时流式输出，提供更好的用户体验
                 </p>
               </CardContent>
             </Card>
@@ -218,11 +221,11 @@ Dify API not configured. Please contact administrator to set the following envir
           <Card>
             <CardContent className="p-8 text-center">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-4">{t('pages.please_login_first')}</h3>
+              <h3 className="text-xl font-semibold mb-4">请先登录</h3>
               <p className="text-gray-600 mb-6">
                 {service 
-                  ? `${t('pages.login_required_description')} ${service.name}`
-                  : t('pages.login_required_description')
+                  ? `需要登录账户才能使用${service.name}并进行Token计费`
+                  : '需要登录账户才能使用AI聊天功能并进行Token计费'
                 }
               </p>
               <div className="flex gap-4 justify-center">
@@ -230,13 +233,13 @@ Dify API not configured. Please contact administrator to set the following envir
                   onClick={() => window.location.href = '/login'}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  {t('pages.login_now')}
+                  立即登录
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={() => window.location.href = '/register'}
                 >
-                  {t('pages.create_account')}
+                  注册账户
                 </Button>
               </div>
             </CardContent>
@@ -244,14 +247,14 @@ Dify API not configured. Please contact administrator to set the following envir
 
           {/* Benefits */}
           <div className="mt-12">
-            <h2 className="text-2xl font-bold text-center mb-8">{t('features.why_native_api')}</h2>
+            <h2 className="text-2xl font-bold text-center mb-8">{t('features.why_native_api', 'Why choose native API integration?')}</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">{t('features.solve_cors_restrictions')}</h4>
+                  <h4 className="font-semibold mb-1">解决跨域限制</h4>
                   <p className="text-sm text-gray-600">
-                    {t('features.solve_cors_description')}
+                    不再依赖iframe，完全避免跨域消息监听失败的问题
                   </p>
                 </div>
               </div>
@@ -259,9 +262,9 @@ Dify API not configured. Please contact administrator to set the following envir
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">{t('features.hundred_percent_billing')}</h4>
+                  <h4 className="font-semibold mb-1">{t('features.hundred_percent_billing', '100% Accurate Billing')}</h4>
                   <p className="text-sm text-gray-600">
-                    {t('features.hundred_percent_description')}
+                    {t('features.hundred_percent_description', 'Direct access to token usage data from API response, billing accurate to each token')}
                   </p>
                 </div>
               </div>
@@ -269,9 +272,9 @@ Dify API not configured. Please contact administrator to set the following envir
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">{t('features.better_user_experience')}</h4>
+                  <h4 className="font-semibold mb-1">更好的用户体验</h4>
                   <p className="text-sm text-gray-600">
-                    {t('features.better_ux_description')}
+                    支持流式响应、消息重试、对话管理等高级功能
                   </p>
                 </div>
               </div>
@@ -279,9 +282,9 @@ Dify API not configured. Please contact administrator to set the following envir
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-1">{t('features.real_time_balance_monitoring')}</h4>
+                  <h4 className="font-semibold mb-1">{t('features.real_time_balance_monitoring', 'Real-time Balance Monitoring')}</h4>
                   <p className="text-sm text-gray-600">
-                    {t('features.balance_monitoring_description')}
+                    {t('features.balance_monitoring_description', 'Update account balance immediately after each conversation, prevent overuse')}
                   </p>
                 </div>
               </div>
@@ -293,8 +296,57 @@ Dify API not configured. Please contact administrator to set the following envir
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative overflow-hidden">
+      {/* 🚧 开发中遮罩层 */}
+      {showUnderDevelopmentOverlay && (
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 z-50 flex items-center justify-center p-8">
+          <div className="max-w-2xl w-full">
+            <div className="text-center mb-8">
+              <div className="text-6xl mb-6">🚧</div>
+              <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Deep-Copywriting
+              </h1>
+              <p className="text-xl text-gray-600 mb-8">深度专业性个人IP文案</p>
+            </div>
+            
+            <Alert className="bg-yellow-50 border-yellow-200 shadow-lg">
+              <AlertDescription className="text-center text-yellow-800 font-medium text-lg py-4">
+                🚧 该功能正在开发中，即将上线<br/>
+                Under Development, Coming Soon
+              </AlertDescription>
+            </Alert>
+
+            <div className="mt-8 text-center text-gray-500 text-sm">
+              <p>我们正在努力完善这个功能</p>
+              <p>敬请期待！</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Kusama dots pattern */}
+      <div 
+        className="absolute inset-0 opacity-15"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 20% 30%, #3B82F6 3px, transparent 3px),
+            radial-gradient(circle at 80% 20%, #A855F7 2px, transparent 2px),
+            radial-gradient(circle at 40% 70%, #F59E0B 1.5px, transparent 1.5px),
+            radial-gradient(circle at 90% 80%, #EF4444 2.5px, transparent 2.5px),
+            radial-gradient(circle at 10% 90%, #22C55E 2px, transparent 2px)
+          `,
+          backgroundSize: '100px 100px, 120px 120px, 80px 80px, 140px 140px, 90px 90px'
+        }}
+      ></div>
+      
+      {/* Kandinsky geometric shapes */}
+      <div className="absolute top-20 left-16 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full animate-pulse"></div>
+      <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-yellow-400/15 to-red-400/15 transform rotate-45 animate-bounce"></div>
+      <div className="absolute bottom-32 left-1/4 w-40 h-20 bg-gradient-to-br from-green-400/15 to-teal-400/15 rounded-full animate-pulse delay-1000"></div>
+      <div className="absolute bottom-40 right-1/3 w-28 h-28 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-lg transform rotate-12 animate-bounce delay-500"></div>
+
+      <div className="relative container mx-auto px-4 py-8 z-10">
+        <div className="max-w-7xl mx-auto">
         {/* Back to services button if we have a service */}
         {service && (
           <div className="mb-6">
@@ -309,42 +361,49 @@ Dify API not configured. Please contact administrator to set the following envir
           </div>
         )}
 
-        {/* Page Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                {service ? (
-                  <>
-                    <Bot className="h-6 w-6 text-blue-600" />
-                    {service.name}
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare className="h-6 w-6 text-blue-600" />
-                    {t('nav.chat')}
-                  </>
-                )}
-                <Badge variant="secondary" className="ml-2">
-                  <Zap className="h-3 w-3 mr-1" />
-                  {t('features.native_api_integration')}
-                </Badge>
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Welcome {user.name}, {t('billing.remaining_balance', { balance: user.balance.toLocaleString() })}
-                {service && (
-                  <span className="ml-2 text-sm">
-                    • {service.description}
-                  </span>
-                )}
-              </p>
+        {/* Artistic Page Header */}
+        <div className="mb-8">
+          <div className="text-center">
+            {/* Artistic divider */}
+            <div className="flex justify-center mb-8 space-x-3">
+              {[...Array(7)].map((_, i) => (
+                <div 
+                  key={i}
+                  className="w-4 h-4 rounded-full animate-bounce"
+                  style={{
+                    backgroundColor: ['#3B82F6', '#A855F7', '#F59E0B', '#EF4444', '#22C55E', '#EC4899', '#06B6D4'][i],
+                    animationDelay: `${i * 150}ms`
+                  }}
+                ></div>
+              ))}
+            </div>
+            
+            {/* Kandinsky-inspired icon */}
+            <div className="relative w-28 h-28 mx-auto mb-8">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl rotate-12 animate-pulse"></div>
+              <div className="absolute inset-3 bg-white rounded-2xl flex items-center justify-center shadow-inner">
+                <MessageSquare className="h-12 w-12 text-blue-600" />
+              </div>
+              
+              {/* Floating artistic elements */}
+              <div className="absolute -top-3 -right-3 w-6 h-6 bg-yellow-400 rounded-full animate-bounce"></div>
+              <div className="absolute -bottom-3 -left-3 w-4 h-4 bg-pink-400 rounded-full animate-bounce delay-300"></div>
+              <div className="absolute top-2 -right-6 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
             </div>
 
+            <h1 className="text-5xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Deep-Copywriting
+              </span>
+            </h1>
+            <p className="text-2xl text-gray-700 mb-8 font-light">
+              <span className="bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+                {t('chat.deep_copywriting_subtitle', '深度专业性个人IP文案')}
+              </span>
+            </p>
+          </div>
+
             <div className="flex items-center gap-4">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />
-                {t('billing.real_time_billing')}
-              </Badge>
               {user.balance < 1000 && (
                 <Button 
                   variant="outline" 
@@ -352,16 +411,29 @@ Dify API not configured. Please contact administrator to set the following envir
                   onClick={() => window.location.href = '/pricing'}
                   className="text-orange-600 border-orange-200 hover:bg-orange-50"
                 >
-                  {t('billing.insufficient_balance')}
+                  余额不足，去充值
                 </Button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Main Chat Interface */}
-        <div className="h-[calc(100vh-200px)] min-h-[600px]">
-          <DifyChatInterface 
+        {/* Main Chat Interface - Artistic Style */}
+        <div className="relative">
+          {/* Kusama dots overlay for chat area */}
+          <div 
+            className="absolute inset-0 rounded-3xl opacity-10 pointer-events-none"
+            style={{
+              backgroundImage: `
+                radial-gradient(circle at 30% 20%, #3B82F6 2px, transparent 2px),
+                radial-gradient(circle at 70% 80%, #06B6D4 1.5px, transparent 1.5px)
+              `,
+              backgroundSize: '60px 60px, 80px 80px'
+            }}
+          ></div>
+          
+          <div className="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 p-8 h-[calc(100vh-300px)] min-h-[600px]">
+            <DifyChatInterface 
             className="h-full"
             showMetadata={false}
             enableStreaming={true}
@@ -371,21 +443,31 @@ Dify API not configured. Please contact administrator to set the following envir
             enableRetry={true}
             user={user} // 🔥 传递认证用户信息
             placeholder={service 
-              ? `${t('chat.input_question')} ${service.name}...` 
-              : t('chat.placeholder')
+              ? `输入您的${service.name}需求...` 
+              : "输入您的消息或工作流指令..."
             }
             welcomeMessage={service 
               ? `您好！我是${service.name}。${service.description}有什么可以帮助您的吗？`
-              : `Hi! I am your marketing content AI assistant. To create effective copywriting for you, I need to collect 4 key pieces of information:
-
-1. **Your Product**: What product or service are you promoting?
-2. **Product Features**: What are the key features or advantages of your product?
-3. **Target Audience**: Who is your target customer group?
-4. **Content Length**: How many words do you need for the copy?
-
-Please share these details to start creating your marketing content!`
+              : t('chat.dify_welcome_message_new', '使用诀窍：为了创建有效的营销文案，我需要收集4个关键信息：\n\n1. **您的产品**: 您要推广的产品或服务是什么？\n2. **产品特色**: 您的产品有哪些主要特色或优势？\n3. **目标受众**: 您的目标客户群体是谁？\n4. **内容长度**: 您需要多少字的文案？\n\n请分享这些详细信息来开始创建您的营销内容！')
             }
           />
+          </div>
+        </div>
+        
+        {/* Artistic footer */}
+        <div className="mt-16 text-center">
+          <div className="flex justify-center space-x-2 mb-4">
+            {[...Array(9)].map((_, i) => (
+              <div 
+                key={i}
+                className="w-3 h-3 rounded-full animate-bounce"
+                style={{
+                  backgroundColor: ['#3B82F6', '#A855F7', '#F59E0B', '#EF4444', '#22C55E', '#EC4899', '#06B6D4', '#8B5CF6', '#F97316'][i],
+                  animationDelay: `${i * 100}ms`
+                }}
+              ></div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -1,51 +1,59 @@
-/**
- * Language Switcher Component
- * Allows users to switch between English and Chinese languages
- */
-
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { Globe } from 'lucide-react';
+import { Globe, Check } from 'lucide-react';
 
-export const LanguageSwitcher = () => {
+export function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
+  const [currentLang, setCurrentLang] = useState(i18n.language);
 
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
+  const languages = [
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'zh', name: '中文', flag: '🇨🇳' }
+  ];
+
+  const handleLanguageChange = (langCode: string) => {
+    i18n.changeLanguage(langCode);
+    setCurrentLang(langCode);
+    localStorage.setItem('i18nextLng', langCode);
   };
 
-  const getCurrentLanguageLabel = () => {
-    return i18n.language === 'zh' ? '中文' : 'English';
+  const getCurrentLanguage = () => {
+    return languages.find(lang => lang.code === currentLang) || languages[0];
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2">
-          <Globe size={16} />
-          {getCurrentLanguageLabel()}
+          <Globe className="h-4 w-4" />
+          <span className="hidden sm:inline">{getCurrentLanguage().name}</span>
+          <span className="sm:hidden">{getCurrentLanguage().flag}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => changeLanguage('en')}>
-          <span className="flex items-center gap-2">
-            English
-            {i18n.language === 'en' && <span className="text-green-500">✓</span>}
-          </span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeLanguage('zh')}>
-          <span className="flex items-center gap-2">
-            中文
-            {i18n.language === 'zh' && <span className="text-green-500">✓</span>}
-          </span>
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-40">
+        {languages.map((language) => (
+          <DropdownMenuItem
+            key={language.code}
+            onClick={() => handleLanguageChange(language.code)}
+            className="flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <span>{language.flag}</span>
+              <span>{language.name}</span>
+            </div>
+            {currentLang === language.code && (
+              <Check className="h-4 w-4 text-blue-600" />
+            )}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
-};
+}

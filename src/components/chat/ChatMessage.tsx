@@ -12,12 +12,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { 
   User, 
   Bot, 
-  Clock, 
   RotateCcw, 
   AlertCircle,
   Copy,
   Check
 } from 'lucide-react';
+import { MessageFeedback, TypingIndicator } from '@/components/ui/message-status';
 import { ChatMessage as ChatMessageType } from '@/hooks/useDifyChat';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -121,47 +121,56 @@ export const ChatMessage = memo(({
 
             {/* Streaming Indicator */}
             {isStreaming && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
-                <Clock className="h-3 w-3 animate-spin" />
-                <span>AI正在回复...</span>
+              <div className="mt-2">
+                <TypingIndicator message="AI正在回复..." />
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Message Actions */}
+        {/* Message Actions and Status */}
         <div className={cn(
-          "flex items-center gap-2 text-xs text-gray-500",
-          isUser ? "justify-end" : "justify-start"
+          "flex items-center justify-between gap-2",
+          isUser ? "flex-row-reverse" : "flex-row"
         )}>
-          <span>{formatTimestamp(message.timestamp)}</span>
+          {/* Message Status Feedback */}
+          <MessageFeedback
+            status={hasError ? 'failed' : isStreaming ? 'sending' : 'delivered'}
+            isStreaming={isStreaming}
+            error={hasError ? message.error : undefined}
+            showTimestamp={true}
+            timestamp={message.timestamp}
+          />
           
-          {!isUser && message.content && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCopy}
-              className="h-6 px-2 text-gray-400 hover:text-gray-600"
-            >
-              {copied ? (
-                <Check className="h-3 w-3" />
-              ) : (
-                <Copy className="h-3 w-3" />
-              )}
-            </Button>
-          )}
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1">
+            {!isUser && message.content && !isStreaming && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopy}
+                className="h-6 px-2 text-gray-400 hover:text-gray-600"
+              >
+                {copied ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            )}
 
-          {hasError && onRetry && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRetry}
-              className="h-6 px-2 text-red-500 hover:text-red-700"
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              重试
-            </Button>
-          )}
+            {hasError && onRetry && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRetry}
+                className="h-6 px-2 text-red-500 hover:text-red-700"
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                重试
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Metadata (Debug Info) */}

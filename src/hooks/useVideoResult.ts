@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface VideoResult {
   sessionId: string;
@@ -28,7 +28,7 @@ export function useVideoResult({
   const startTimeRef = useRef<number>(0);
 
   // 开始轮询
-  const startPolling = () => {
+  const startPolling = useCallback(() => {
     if (isPolling) return;
     
     console.log('🔄 开始轮询视频结果，sessionId:', sessionId);
@@ -79,10 +79,10 @@ export function useVideoResult({
     
     // 立即开始第一次检查
     poll();
-  };
+  }, [sessionId, isPolling, maxPollingTime, pollingInterval, onResult]);
 
   // 停止轮询
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     console.log('⏹️ 停止轮询视频结果');
     setIsPolling(false);
     
@@ -90,7 +90,7 @@ export function useVideoResult({
       clearTimeout(pollingRef.current);
       pollingRef.current = null;
     }
-  };
+  }, []);
 
   // 重置状态
   const reset = () => {
@@ -98,6 +98,14 @@ export function useVideoResult({
     setResult(null);
     setError(null);
   };
+
+  // 当sessionId变化时，重置状态
+  useEffect(() => {
+    if (sessionId && sessionId.trim() !== '') {
+      console.log('📱 sessionId已更新，重置轮询状态:', sessionId);
+      reset();
+    }
+  }, [sessionId]);
 
   // 组件卸载时清理
   useEffect(() => {

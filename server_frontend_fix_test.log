@@ -1,0 +1,6 @@
+[dotenv@17.2.1] injecting env (19) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+🚀 Starting Prome Platform server
+✅ Dify API environment variables are configured
+Server is running on port 8080
+🔍 Performing database health check...
+✅ Database health check passed - all required tables exist

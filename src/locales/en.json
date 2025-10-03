@@ -16,7 +16,8 @@
     "search": "Search",
     "filter": "Filter",
     "submit": "Submit",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "important_note": "Important Note"
   },
   
   "nav": {
@@ -28,11 +29,17 @@
     "login": "Login",
     "logout": "Logout",
     "register": "Register",
-    "settings": "Settings"
+    "settings": "Settings",
+    "myAccount": "My Account",
+    "usage": "Usage",
+    "signUp": "Sign Up"
   },
   
   "chat": {
-    "welcome_message": "Hi! I am your marketing content AI assistant. To create effective copywriting for you, I need to collect 4 key pieces of information:\n\n1. **Your Product**: What product or service are you promoting?\n2. **Product Features**: What are the key features or advantages of your product?\n3. **Target Audience**: Who is your target customer group?\n4. **Content Length**: How many words do you need for the copy?\n\nPlease share these details to start creating your marketing content!",
+    "welcome_message": "Welcome {{name}}, Current Balance:",
+    "deep_copywriting_subtitle": "Deep Professional Personal IP Copywriting",
+    "dify_welcome_message": "Hi! I am your marketing content AI assistant. To create effective copywriting for you, I need to collect 4 key pieces of information:\n\n1. **Your Product**: What product or service are you promoting?\n2. **Product Features**: What are the key features or advantages of your product?\n3. **Target Audience**: Who is your target customer group?\n4. **Content Length**: How many words do you need for the copy?\n\nPlease share these details to start creating your marketing content!",
+    "dify_welcome_message_new": "Usage Tips: To create effective marketing copy, I need to collect 4 key pieces of information:\n\n1. **Your Product**: What product or service are you promoting?\n2. **Product Features**: What are the key features or advantages of your product?\n3. **Target Audience**: Who is your target customer group?\n4. **Content Length**: How many words do you need for the copy?\n\nPlease share these details to start creating your marketing content!",
     "placeholder": "Type your message or workflow instructions...",
     "new_chat": "New Chat",
     "clear_chat": "Clear Chat",
@@ -91,10 +98,10 @@
   "billing": {
     "balance": "Balance",
     "points": "points",
+    "real_time_billing": "Real-time Billing",
     "tokens_consumed": "{{tokens}} tokens consumed ({{points}} points)",
     "remaining_balance": "Balance: {{balance}} points",
     "insufficient_balance": "Insufficient balance, go recharge",
-    "real_time_billing": "Real-time billing",
     "token_usage": "Token Usage",
     "cost": "Cost",
     "model": "Model",
@@ -111,19 +118,6 @@
     "system_settings": "System Settings",
     "usage_statistics": "Usage Statistics",
     "revenue_analytics": "Revenue Analytics"
-  },
-  
-  "errors": {
-    "something_went_wrong": "Something went wrong",
-    "network_error": "Network error, please try again",
-    "authentication_failed": "Authentication failed",
-    "insufficient_permissions": "Insufficient permissions",
-    "invalid_input": "Invalid input",
-    "server_error": "Server error",
-    "not_found": "Page not found",
-    "token_processing_failed": "Token usage processing failed",
-    "conversation_not_found": "Conversation not found",
-    "invalid_conversation_id": "Invalid conversation ID"
   },
   
   "success": {
@@ -281,7 +275,8 @@
     "deep_copywriting": "Deep Copywriting Creation",
     "automated_video": "Automated Video Creation",
     "deep_copywriting_desc": "AI-powered marketing content generation with advanced workflow",
-    "automated_video_desc": "Automated video content creation and editing solutions",
+    "automated_video_desc": "Let your products speak for themselves - Auto-generate authentic voiceover videos for e-commerce, content creation, and brand marketing",
+    "video_demo_label": "AI-Generated Real User Feedback Video Demo",
     "start_creating": "Start Creating",
     "login_to_use": "Login to Use"
   },
@@ -426,6 +421,70 @@
     "validation_description_min": "Product description needs at least 10 characters",
     "validation_image_required": "Please enter product image URL",
     "validation_image_invalid": "Please enter a valid image URL (must end with .jpg, .jpeg, .png or .webp)",
-    "validation_gender_required": "Please select character gender"
+    "validation_gender_required": "Please select character gender",
+    "generation_complete": "🎉 Video generation complete!",
+    "result_received": "✅ Video result received, please check result",
+    "request_sent": "✅ Request sent, AI is creating your video...",
+    "processing_architecture": "Using new three-workflow asynchronous architecture to process your request...",
+    "request_received": "✅ Request received, generating video...",
+    "download_link": "Download link",
+    "watch_video": "Watch Video",
+    "create_new": "Create New Video",
+    "product_image_preview": "Product Image Preview",
+    "validation_language_required": "Please select video language",
+    "language": "Video Language",
+    "language_placeholder": "Select video language",
+    "language_hint": "Veo 3 Fast supports multiple languages, choose the most suitable language for your product",
+    "seconds": "sec",
+    "credits_unit": " credits",
+    "duration_hint": "Fee includes: Google Veo 3 Fast + Nano Banana + video merging. Credits will be deducted after successful video generation.",
+    "credits_balance": "Current Credits Balance",
+    "insufficient_credits_warning": "Insufficient credits for this video duration",
+    "preview_request_title": "Video Creation Request",
+    "required_credits": "Required Credits",
+    "product_image": "Product Image",
+    "preview_footer": "Please create video content based on the above information."
+  },
+
+  "n8n": {
+    "page_title": "N8n Workflow Chat",
+    "page_subtitle": "Interact with AI-powered workflows through an intelligent chat interface",
+    "integration_disabled": "N8n Integration Disabled",
+    "integration_disabled_desc": "N8n chat integration is currently disabled",
+    "enable_instruction": "To enable N8n chat, set VITE_ENABLE_N8N_INTEGRATION=true in environment variables",
+    "required_env_vars": "Required Environment Variables:",
+    "back_to_dashboard": "Back to Dashboard",
+    "manage_settings": "Manage Settings",
+    "diagnostic_connection": "Diagnostic Connection",
+    "welcome_user": "Welcome, {{name}}",
+    "user_id": "User ID",
+    "video_agent_title": "ProMe-UGC Real-Person Feedback Video Agent",
+    "video_agent_subtitle": "Let your product speak through real voices",
+    "architecture_description": "Using N8n three-workflow asynchronous architecture + real-time callbacks",
+    "processing_title": "Three-workflow architecture processing...",
+    "estimated_time": "Estimated time",
+    "time_range": "2-15 minutes",
+    "architecture_advantage": "Architecture advantage",
+    "async_processing": "Asynchronous processing, polling for results",
+    "current_status": "Current status",
+    "polling_status": "Polling for video results...",
+    "workflow_status": "Workflow 2 is generating video, Workflow 3 will automatically save results when complete",
+    "polling_error": "Polling error",
+    "response_details": "N8n Response Details"
+  },
+
+  "errors": {
+    "something_went_wrong": "Something went wrong",
+    "network_error": "Network error, please try again",
+    "authentication_failed": "Authentication failed",
+    "insufficient_permissions": "Insufficient permissions",
+    "invalid_input": "Invalid input",
+    "server_error": "Server error",
+    "not_found": "Page not found",
+    "token_processing_failed": "Token usage processing failed",
+    "conversation_not_found": "Conversation not found",
+    "invalid_conversation_id": "Invalid conversation ID",
+    "request_failed": "Request failed",
+    "unknown_error": "Unknown error"
   }
 }

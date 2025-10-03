@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Activity, CircleCheck, CircleX, Zap } from 'lucide-react';
-import { isDifyEnabled, getDifyUsageStats, DifyUsageStats } from '@/api/dify-api';
+import { isDifyEnabled } from '@/lib/dify-api-client';
+import { getDifyUsageStats, DifyUsageStats } from '@/api/dify-api';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function DifyMonitorStatus() {

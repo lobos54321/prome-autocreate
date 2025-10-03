@@ -53,7 +53,7 @@ class AdminServicesAPI {
     this.rechargePackages = [
       {
         id: '1',
-        name: '基础套餐',
+        name: 'Basic Plan',
         usdAmount: 10,
         creditsAmount: 10000,
         isPopular: false,
@@ -64,7 +64,7 @@ class AdminServicesAPI {
       },
       {
         id: '2',
-        name: '推荐套餐',
+        name: 'Popular Plan',
         usdAmount: 25,
         creditsAmount: 25000,
         isPopular: true,
@@ -75,7 +75,7 @@ class AdminServicesAPI {
       },
       {
         id: '3',
-        name: '高级套餐',
+        name: 'Advanced Plan',
         usdAmount: 50,
         creditsAmount: 50000,
         isPopular: false,
@@ -86,7 +86,7 @@ class AdminServicesAPI {
       },
       {
         id: '4',
-        name: '专业套餐',
+        name: 'Professional Plan',
         usdAmount: 100,
         creditsAmount: 100000,
         isPopular: false,

@@ -4,7 +4,7 @@
  * Displays the conversation history with messages and manages scrolling.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo, useCallback, memo, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import {
   ArrowDown,
   History
 } from 'lucide-react';
+import { ChatLoadingIndicator, SkeletonLoader } from '@/components/ui/loading-indicator';
+import { VirtualizedMessageList } from './VirtualizedMessageList';
 import { ChatMessage } from './ChatMessage';
 import { ChatMessage as ChatMessageType } from '@/hooks/useDifyChat';
 import { cn } from '@/lib/utils';
@@ -25,44 +27,77 @@ interface ChatHistoryProps {
   onRetryMessage?: () => void;
   onClearMessages?: () => void;
   onRegenerateLastMessage?: () => void;
+  onLoadMoreMessages?: () => void;
   isLoading?: boolean;
   isStreaming?: boolean;
+  isLoadingMore?: boolean;
+  hasMoreMessages?: boolean;
   showMetadata?: boolean;
   className?: string;
   conversationId?: string | null;
+  virtualizeThreshold?: number; // 消息数量超过此阈值时启用虚拟化
 }
 
-export const ChatHistory = ({
+export const ChatHistory = memo(({
   messages,
   onRetryMessage,
   onClearMessages,
   onRegenerateLastMessage,
+  onLoadMoreMessages,
   isLoading = false,
   isStreaming = false,
+  isLoadingMore = false,
+  hasMoreMessages = false,
   showMetadata = false,
   className,
-  conversationId
+  conversationId,
+  virtualizeThreshold = 50
 }: ChatHistoryProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when new messages arrive
+  const [shouldVirtualize, setShouldVirtualize] = useState(false);
+  
+  // Check if virtualization should be enabled
   useEffect(() => {
+    setShouldVirtualize(messages.length > virtualizeThreshold);
+  }, [messages.length, virtualizeThreshold]);
+
+  // Memoize computed values for better performance
+  const computedState = useMemo(() => {
+    const hasMessages = messages.length > 0;
+    const lastMessage = messages[messages.length - 1];
+    return {
+      hasMessages,
+      lastMessage,
+      canRegenerate: hasMessages && lastMessage?.role === 'assistant' && !isLoading,
+      hasError: lastMessage?.error,
+      shouldVirtualize
+    };
+  }, [messages, isLoading, shouldVirtualize]);
+
+  // Load more messages when scrolling to top
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    if (!hasMoreMessages || isLoadingMore || !onLoadMoreMessages) return;
+    
+    const target = event.currentTarget;
+    if (target.scrollTop === 0) {
+      onLoadMoreMessages();
+    }
+  }, [hasMoreMessages, isLoadingMore, onLoadMoreMessages]);
+
+  // Optimize scroll function with useCallback
+  const scrollToBottom = useCallback(() => {
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages.length, isStreaming]);
+  }, []);
 
-  const hasMessages = messages.length > 0;
-  const lastMessage = messages[messages.length - 1];
-  const canRegenerate = hasMessages && lastMessage?.role === 'assistant' && !isLoading;
-  const hasError = lastMessage?.error;
-
-  const scrollToBottom = () => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+  // Auto-scroll to bottom when new messages arrive (optimized)
+  useEffect(() => {
+    if (computedState.hasMessages || isStreaming) {
+      scrollToBottom();
     }
-  };
+  }, [messages.length, isStreaming, scrollToBottom, computedState.hasMessages]);
 
   return (
     <Card className={cn("flex flex-col h-full", className)}>
@@ -125,7 +160,7 @@ export const ChatHistory = ({
 
       {/* Messages Area */}
       <CardContent className="flex-1 p-0 overflow-hidden">
-        {!hasMessages ? (
+        {!computedState.hasMessages ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8">
             <History className="h-12 w-12 mb-4 text-gray-300" />
@@ -136,28 +171,55 @@ export const ChatHistory = ({
           </div>
         ) : (
           /* Messages List */
-          <ScrollArea ref={scrollAreaRef} className="h-full">
+          <ScrollArea ref={scrollAreaRef} className="h-full" onScrollCapture={handleScroll}>
             <div className="space-y-0">
-              {messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  onRetry={hasError && index === messages.length - 1 ? onRetryMessage : undefined}
-                  showMetadata={showMetadata}
-                  className={cn(
-                    "border-b border-gray-100 last:border-b-0",
-                    index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+              {/* Load More Indicator at Top */}
+              {hasMoreMessages && (
+                <div className="flex items-center justify-center p-4 text-gray-500 border-b border-gray-100">
+                  {isLoadingMore ? (
+                    <ChatLoadingIndicator message="加载更多消息..." />
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onLoadMoreMessages}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <History className="h-4 w-4 mr-2" />
+                      加载更多历史消息
+                    </Button>
                   )}
+                </div>
+              )}
+
+              {shouldVirtualize ? (
+                /* Virtual Scrolling for Large Message Lists */
+                <VirtualizedMessageList
+                  messages={messages}
+                  showMetadata={showMetadata}
+                  onRetry={computedState.hasError ? onRetryMessage : undefined}
+                  height={400} // Fixed height for virtualization
                 />
-              ))}
+              ) : (
+                /* Regular Rendering for Small Message Lists */
+                messages.map((message, index) => (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    onRetry={computedState.hasError && index === messages.length - 1 ? onRetryMessage : undefined}
+                    showMetadata={showMetadata}
+                    className={cn(
+                      "border-b border-gray-100 last:border-b-0",
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                    )}
+                  />
+                ))
+              )}
               
               {/* Loading Indicator */}
               {isLoading && !isStreaming && (
-                <div className="flex items-center justify-center p-4 text-gray-500">
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span className="text-sm">AI正在思考...</span>
-                  </div>
+                <div className="flex items-center justify-center p-4">
+                  <ChatLoadingIndicator message="AI正在思考..." />
                 </div>
               )}
 
@@ -169,4 +231,4 @@ export const ChatHistory = ({
       </CardContent>
     </Card>
   );
-};
+});
